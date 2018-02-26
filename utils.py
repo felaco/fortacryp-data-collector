@@ -9,21 +9,13 @@ from pandas.compat import lmap
 import numpy as np
 
 
-# http://code.activestate.com/recipes/498181-add-thousands-separator-commas-to-formatted-number/#c6
-def _splitThousands(num, thousand_separator, decimal_sep=None):
-    if num.rfind('.') > 0:
-        rhs = num[num.rfind('.') + 1:]
-        num = num[:num.rfind('.') - 1]
-        if len(num) <= 3: return num + decimal_sep + rhs
-        return _splitThousands(num[:-3], thousand_separator) + thousand_separator + num[-3:] + decimal_sep + rhs
+def split_thousands(num, unused):
+    if isinstance(num, float):
+        return '{:,.1f}'.format(num).replace(",", "X").replace(".", ",").replace("X", ".")
+    elif isinstance(num, int):
+        return '{:,d}'.format(num).replace(",", ".")
     else:
-        if len(num) <= 3: return num
-        return _splitThousands(num[:-3], thousand_separator) + thousand_separator + num[-3:]
-
-
-def split_thousands(num):
-    num = str(num)
-    return _splitThousands(num, thousand_separator='.', decimal_sep=',')
+        return str(num)
 
 
 def read_config_file():
@@ -86,9 +78,9 @@ def get_last_week_datetime():
 
 
 def get_diff_datetime(ts_diff):
-    last_week_ts = time.time() - ts_diff
+    diff_ts = time.time() - ts_diff
     tz = tzlocal()
-    return datetime.fromtimestamp(last_week_ts, tz)
+    return datetime.fromtimestamp(diff_ts, tz)
 
 
 def autocorrelation_plot(series, n_samples=None, ax=None, **kwds):
@@ -139,4 +131,7 @@ def autocorrelation_plot(series, n_samples=None, ax=None, **kwds):
 
 
 if __name__ == '__main__':
-    create_base_config_file()
+    # create_base_config_file()
+    print(split_thousands(1234567))
+    print('{:,d}'.format(1234567))
+

@@ -27,7 +27,7 @@ def load_dataset(path, resample='1D', lag=4):
 
     removenan = PreprocessRemoveNan()
     lagmatrix = PreprocessLagMatrix(lag=lag)
-    removefirst = PreprocessRemoveFirstElements(x_lag=lag, y_lag=lag)
+    removefirst = PreprocessRemoveFirstElements(lag=lag)
 
     preprocessList = PreprocessList([ lagmatrix,removenan, removefirst])
 

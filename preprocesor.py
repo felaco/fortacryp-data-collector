@@ -41,7 +41,7 @@ class Preprocess(object):
 
 class PreprocessLagMatrix(Preprocess):
     """
-    Aplica un retraso al dataset x. Se retorna el dataset original como x, mientras que la version desplazada como y
+    Aplica un retraso al dataset x. Se retorna el dataset original como y, mientras que la version desplazada como x
     El parametro y_dataset debe ser nulo o arrojara una excepcion
     """
 
@@ -52,17 +52,21 @@ class PreprocessLagMatrix(Preprocess):
         if y_dataset is not None:
             raise ValueError("Y_dataset must be None")
 
-        return x_dataset.shift(self.lag), x_dataset
+        x = pd.DataFrame()
+
+        for i in range(1, self.lag + 1):
+            temp = x_dataset.shift(i)
+            x['t-{}'.format(i)] = temp
+        return x, x_dataset
 
 
 class PreprocessRemoveFirstElements(Preprocess):
-    def __init__(self, x_lag=4, y_lag=4):
-        self.x_lag = x_lag
-        self.y_lag = y_lag
+    def __init__(self, lag):
+        self.lag = lag
 
     def execute(self, x_dataset, y_dataset=None):
-        return x_dataset.drop(x_dataset.iloc[:self.x_lag].index), \
-               y_dataset.drop(y_dataset.iloc[:self.y_lag].index)
+        return x_dataset.drop(x_dataset.iloc[:self.lag].index), \
+               y_dataset.drop(y_dataset.iloc[:self.lag].index)
 
 
 def test_train_split_timestamp(x_dataset, y_dataset, timestamp_diff=WEEK):

@@ -105,10 +105,17 @@ class PreprocessRemoveNan(Preprocess):
 
     def execute(self, x_dataset, y_dataset=None):
         if y_dataset is not None:
+            y_dataset = y_dataset.dropna()
+
+        return x_dataset.dropna(), y_dataset
+
+
+class PreprocessFillNan(Preprocess):
+    def execute(self, x_dataset, y_dataset=None):
+        if y_dataset is not None:
             y_dataset = y_dataset.fillna(method='ffill')
 
         return x_dataset.fillna(method='ffill'), y_dataset
-
 
 def normalize_sliding_windows(df, label, window=10):
     # df =df.dropna()
@@ -149,7 +156,8 @@ class PreprocessDifferenciate(Preprocess):
             val = data[i] + self.x_original[i - self.periods]
             lista.append(val)
 
-        return np.array(lista)
+        # return np.array(lista)
+        return pd.DataFrame(lista)
 
 class MinMaxNormalizeSlidingWindow:
     def __init__(self):

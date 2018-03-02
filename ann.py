@@ -60,7 +60,7 @@ def train_model(x, y, test_data, n_inputs, n_outputs):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-    dataset = load_dataset('bitcoin.csv', resample='1D', lag=1)
+    dataset = load_dataset('bitcoin.csv', resample='1D', lag=3)
     x = dataset.xtrain_mean
     y = dataset.ytrain_mean
     xt = dataset.xtest_mean

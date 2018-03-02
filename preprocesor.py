@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from utils import get_diff_datetime
 
 WEEK = 60 * 60 * 24 * 7
@@ -52,13 +53,30 @@ class PreprocessLagMatrix(Preprocess):
         if y_dataset is not None:
             raise ValueError("Y_dataset must be None")
 
-        x = pd.DataFrame()
-
+        df = pd.DataFrame()
         for i in range(1, self.lag + 1):
             temp = x_dataset.shift(i)
-            x['t-{}'.format(i)] = temp
-        return x, x_dataset
+            self._change_col_names(temp, i)
+            self.append(df, temp)
 
+        return df, x_dataset
+
+    def _change_col_names(self, df, lag):
+        if isinstance(df, pd.Series):
+            df.name = df.name + '_t-{}'.format(lag)
+            return
+
+        colnames = list(df.columns)
+        colnames = [name + '_t-{}'.format(lag) for name in colnames]
+        df.columns = colnames
+
+    def append(self, df, app):
+        if isinstance(app, pd.Series):
+            df[app.name] = app
+        else:
+            for col in app:
+                series = app[col]
+                df[series.name] = series
 
 class PreprocessRemoveFirstElements(Preprocess):
     def __init__(self, lag):
@@ -71,11 +89,6 @@ class PreprocessRemoveFirstElements(Preprocess):
 
 def test_train_split_timestamp(x_dataset, y_dataset, timestamp_diff=WEEK):
     ts = get_diff_datetime(timestamp_diff)
-
-    xshape = x_dataset.shape
-    yshape = y_dataset.shape
-
-    assert xshape == yshape, 'La forma de x_dataset no es la misma que y_dataset'
 
     x_test = x_dataset[x_dataset.index > ts]
     df_len = x_test.shape[0]
@@ -116,6 +129,28 @@ class PreprocessScale(Preprocess):
         return x_dataset * self.scale, y_dataset
 
 
+class PreprocessDifferenciate(Preprocess):
+    def __init__(self, periods=1):
+        self.periods = periods
+        self._fitted = False
+
+    def execute(self, x_dataset, y_dataset=None):
+        self.x_original = x_dataset.copy(deep=True)
+        self._fitted = True
+
+        return x_dataset.diff(self.periods), None
+
+    def inverse_transformation(self, data):
+        if self._fitted == False:
+            raise AttributeError('the execute method has not been run')
+
+        lista = []
+        for i in range(len(self.x_original)):
+            val = data[i] + self.x_original[i - self.periods]
+            lista.append(val)
+
+        return np.array(lista)
+
 class MinMaxNormalizeSlidingWindow:
     def __init__(self):
         self._fitted = False
@@ -139,3 +174,15 @@ class MinMaxNormalizeSlidingWindow:
 
     def inverse_transformation(self, series):
         return series * (self.max - self.min) + self.min
+
+
+if __name__ == '__main__':
+    import pandas as pd
+    from sklearn.preprocessing import scale
+
+    lag=4
+    df = pd.read_excel('Consumo_energetico.xlsx')
+    df['consumo'] = scale(df['consumo'])
+    x, y = PreprocessLagMatrix(lag).execute(df.consumo)
+    x, y = PreprocessRemoveFirstElements(lag).execute(x, y)
+    print(x.head(10))

@@ -78,6 +78,7 @@ class PreprocessLagMatrix(Preprocess):
                 series = app[col]
                 df[series.name] = series
 
+
 class PreprocessRemoveFirstElements(Preprocess):
     def __init__(self, lag):
         self.lag = lag
@@ -117,12 +118,38 @@ class PreprocessFillNan(Preprocess):
 
         return x_dataset.fillna(method='ffill'), y_dataset
 
+
 def normalize_sliding_windows(df, label, window=10):
     # df =df.dropna()
     min = df[label].rolling(window=window).min()
     max = df[label].rolling(window=window).max()
     new_df = (df[label] - min) / (max - min)
     return new_df
+
+
+class PreprocessScikitScaler(Preprocess):
+    def __init__(self, scikit_scaler):
+        self.scikit_scaler = scikit_scaler
+
+    def execute(self, x_dataset, y_dataset=None):
+        if self.scikit_scaler is not None:
+            # si xdataset es un array de 1 dimension se transforma artificialmente a 2D
+            # que es lo que espera los scaler de scikit. Luego se devuelve a 1D
+            if len(x_dataset.shape) == 1:
+                x = x_dataset.values.reshape((len(x_dataset), 1))
+                x = self.scikit_scaler.fit_transform(x)
+                x = x.reshape(x.shape[0])
+
+                # series es la estructura de datos en 1D de la libreria pandas
+                df = pd.Series(x, index=x_dataset.index, name=x_dataset.name)
+            else:
+                x = self.scikit_scaler.fit_transform(x_dataset)
+                # dataframe es la estructura de datos en 2D de la libreria pandas
+                df = pd.DataFrame(x, index=x_dataset.index, columns=x_dataset.columns)
+
+            return df, y_dataset
+        else:
+            return x_dataset, y_dataset
 
 
 class PreprocessScale(Preprocess):
@@ -145,10 +172,12 @@ class PreprocessDifferenciate(Preprocess):
         self.x_original = x_dataset.copy(deep=True)
         self._fitted = True
 
-        return x_dataset.diff(self.periods), None
+        x = x_dataset.diff(self.periods)
+        x = x.drop(x_dataset.iloc[:self.periods].index)
+        return x, None
 
     def inverse_transformation(self, data):
-        if self._fitted == False:
+        if not self._fitted:
             raise AttributeError('the execute method has not been run')
 
         lista = []
@@ -158,6 +187,7 @@ class PreprocessDifferenciate(Preprocess):
 
         # return np.array(lista)
         return pd.DataFrame(lista)
+
 
 class MinMaxNormalizeSlidingWindow:
     def __init__(self):
@@ -188,7 +218,7 @@ if __name__ == '__main__':
     import pandas as pd
     from sklearn.preprocessing import scale
 
-    lag=4
+    lag = 4
     df = pd.read_excel('Consumo_energetico.xlsx')
     df['consumo'] = scale(df['consumo'])
     x, y = PreprocessLagMatrix(lag).execute(df.consumo)

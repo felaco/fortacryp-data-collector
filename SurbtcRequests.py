@@ -97,8 +97,8 @@ class SurbtcRequest:
             # evitar saturar al servidor de peticiones y que nuestra ip
             # se agregue a la lista negra del firewall, o bien cloudflare
             # rechaze nuestra petición
-            # sleep_time = random.randint(13, 18)
-            sleep_time = random.randint(5,10)
+            sleep_time = random.randint(13, 18)
+            # sleep_time = random.randint(5,10)
             time.sleep(sleep_time)
 
         return transactions_list, ask_timestamp_ret

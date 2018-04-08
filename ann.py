@@ -1,6 +1,7 @@
 from models import *
 from preprocesor import *
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
 
 class Dataset:
@@ -17,28 +18,30 @@ class Dataset:
         self.ytrain_ohlc = ytrain_ohlc
         self.xtest_ohlc = xtest_ohlc
         self.ytest_ohlc = ytest_ohlc
+        self.scaler = None
 
 
-def load_dataset(path, resample='1D', lag=4):
+def load_dataset(path, scaler, resample='1D', lag=4):
+
     df = pd.read_csv(path, index_col=0)
     df.set_index(pd.to_datetime(df.index, unit='s'), inplace=True)
     df.sort_index(inplace=True)
     dataset = Dataset(df)
 
-    removenan = PreprocessRemoveNan()
-    lagmatrix = PreprocessLagMatrix(lag=lag)
-    removefirst = PreprocessRemoveFirstElements(lag=lag)
+    p1 = PreprocessDifferenciate(periods=1)
+    p2 = PreprocessScikitScaler(scaler)
+    p3 = PreprocessLagMatrix(lag)
+    p4 = PreprocessRemoveFirstElements(lag)
+    preprocessList = PreprocessList([p1, p2, p3, p4])
 
-    preprocessList = PreprocessList([ lagmatrix,removenan, removefirst])
-
-    ohlc = df['Price'].resample(resample).ohlc()
+    ohlc = df['Price'].resample(resample).ohlc().fillna(method='ffill')
     x, y = preprocessList.execute(ohlc)
     x_train, y_train, x_test, y_test = test_train_split_timestamp(x, y)
 
     dataset.xtrain_ohlc, dataset.ytrain_ohlc = x_train, y_train
     dataset.xtest_ohlc, dataset.ytest_ohlc = x_test, y_test
 
-    mean = df['Price'].resample(resample).mean()
+    mean = df['Price'].resample(resample).mean().fillna(method='ffill')
     x, y = preprocessList.execute(mean)
     x_train, y_train, x_test, y_test = test_train_split_timestamp(x, y)
 
@@ -59,8 +62,10 @@ def train_model(x, y, test_data, n_inputs, n_outputs):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
+    from sklearn.preprocessing import StandardScaler
 
-    dataset = load_dataset('bitcoin.csv', resample='1D', lag=3)
+    scaler = StandardScaler()
+    dataset = load_dataset('bitcoin.csv', scaler=scaler, resample='1D', lag=3)
     x = dataset.xtrain_mean
     y = dataset.ytrain_mean
     xt = dataset.xtest_mean

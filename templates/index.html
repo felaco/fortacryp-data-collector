@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Main Page</title>
+
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <link rel="shortcut icon" href="https://png.icons8.com/ios/1600/bitcoin-filled.png">
+</head>
+<body>
+
+<div id="container"></div>
+<script>
+    $(document).ready(function () {
+        $.get('ohlc', function (data) {
+            data = JSON.parse(data);
+
+            Highcharts.stockChart('container', {
+                plotOptions: {
+                    candlestick: {
+                        color: 'red',
+                        upColor: 'green'
+                    }
+                },
+                rangeSelector: {
+                    selected: 1
+                },
+                series: [{
+                    type: 'candlestick',
+                    name: 'holap',
+                    data: data
+                }]
+            })
+        })
+    })
+</script>
+</body>
+</html>

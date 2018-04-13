@@ -12,9 +12,9 @@ def index():
 
 @app.route('/ohlc', methods=['Get'])
 def ohlc():
-    since_ts = request.args.get('since', default=1438387200)
-    df = get_pandas_dataframe(since_ts, index_name='x')
-    return jsonify(df.ohlc('1D').to_json(include_index=True, timestamp_index=True))
+    resample = request.args.get('resample', default='1D')
+    df = get_pandas_dataframe(1438387200, index_name='x')
+    return jsonify(df.ohlc(resample).to_json(include_index=True, timestamp_index=True))
 
 
 if __name__ == '__main__':

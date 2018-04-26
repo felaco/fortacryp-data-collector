@@ -30,7 +30,7 @@ class Dataframe_wrapper:
 
     def append_volume(self):
         if not self._resampled_flag:
-            raise RuntimeError('El dataframe debe haber sido remuestreado con anteriooridad'
+            raise RuntimeError('El dataframe debe haber sido remuestreado con anterioridad'
                                'para poder agregar el volumen')
 
         self.dataframe['Volume'] = self._dataframe_original['Amount']. \

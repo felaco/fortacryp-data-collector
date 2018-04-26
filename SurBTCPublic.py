@@ -7,7 +7,7 @@ def _ms2sec(ts_str):
 
 class SurBtcPublic:
     def __init__(self, market_id):
-        self.base_url = "https://www.surbtc.com/api/v2/markets"
+        self.base_url = "https://www.buda.com/api/v2/markets"
         Markets.check(market_id)
         self.market_id = market_id
 

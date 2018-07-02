@@ -12,7 +12,7 @@ class Dataframe_wrapper:
     def __init__(self, df: pd.DataFrame):
         self.dataframe = df  # dataframe que se modificará en las funciones
         self._resampled_flag = False
-        self._dataframe_original = df.copy()  # dataframe que nunca será alterado
+        self._dataframe_original = df.copy(deep=True)  # dataframe que nunca será alterado
         self.resample = None
 
     def ohlc(self, resample):
@@ -52,7 +52,7 @@ class Dataframe_wrapper:
         return df.to_json(orient=orient)
 
 
-def get_pandas_dataframe(ts_since, file='bitcoin.csv', index_name='Date'):
+def get_pandas_dataframe(ts_since, file='./dataset/bitcoin.csv', index_name='Date'):
     df = pd.read_csv(file, index_col=0)
     df = df[df.index > ts_since]
     df.set_index(pd.to_datetime(df.index, unit='s').

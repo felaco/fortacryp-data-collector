@@ -22,7 +22,7 @@ if __name__ == '__main__':
     scheduler = BackgroundScheduler(daemon=True)
 
     scheduler.add_job(func=update_crypto, trigger='interval',
-                      next_run_time=datetime.datetime.now(),
+                      # next_run_time=datetime.datetime.now(),
                       hours=3)
 
     scheduler.start()

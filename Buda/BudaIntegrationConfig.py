@@ -10,11 +10,6 @@ class MarketsId:
 
 
 class MarketConfig:
-    most_resent_timestamp: int
-    last_stored_timestampp: int
-    first_stored_timestamp: int
-    current_request_timestamp: int
-    market_id: str
 
     def __init__(self, market_id: str, most_recent_timestamp: int = None,
                  current_request_timestamp: int = None, first_stored_timestamp: int = None,
@@ -28,14 +23,7 @@ class MarketConfig:
         self.recovered_all: bool = recovered_all
 
     def to_dict(self):
-        return {
-            'market_id': self.market_id,
-            'first_stored_timestamp': self.first_stored_timestamp,
-            'most_recent_timestamp': self.most_recent_timestamp,
-            'current_request_timestamp': self.current_request_timestamp,
-            'last_stored_timestampp': self.last_stored_timestamp,
-            'recovered_all': self.recovered_all
-        }
+        return self.__dict__
 
 
 class BudaMarketConfig:

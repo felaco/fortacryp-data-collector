@@ -1,5 +1,6 @@
-import json
 import pandas as pd
+
+from core.config import BaseConfig, MarketConfig
 
 
 class MarketsId:
@@ -9,55 +10,48 @@ class MarketsId:
     bch = 'bch-clp'
 
 
-class MarketConfig:
-
-    def __init__(self, market_id: str, most_recent_timestamp: int = None,
-                 current_request_timestamp: int = None, first_stored_timestamp: int = None,
-                 recovered_all: bool = False, last_stored_timestamp: int = None):
-
-        self.last_stored_timestamp = last_stored_timestamp
-        self.most_recent_timestamp = most_recent_timestamp
-        self.first_stored_timestamp = first_stored_timestamp
-        self.current_request_timestamp = current_request_timestamp
-        self.market_id = market_id
-        self.recovered_all: bool = recovered_all
-
-    def to_dict(self):
-        return self.__dict__
-
-
-class BudaMarketConfig:
+class BudaMarketConfig(BaseConfig):
     sleep_time_sec: int = 10  # time intervals betweern calls. Increase to prevent being blocked by ddos policies
     sleep_time_after_block: int = 60 * 5  # 5 min
     # the string must match the pandas offset aliases
     # http://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
     resample_interval: str = '1H'
+    base_url = 'https://www.buda.com/api/v2/markets/'
 
     btc: MarketConfig = None
     eth: MarketConfig = None
     ltc: MarketConfig = None
     bch: MarketConfig = None
+    root_config = None
 
-    def persist(self, path='budaConfig.json'):
-        json_dict = {
-            'sleep_time_sec': self.sleep_time_sec,
-            'sleep_time_after_block': self.sleep_time_after_block,
-            'resample_interval': self.resample_interval
-        }
+    @classmethod
+    def get_instanciator(cls):
+        return BudaMarketConfig()
 
-        if self.btc is not None:
-            json_dict['btc'] = self.btc.to_dict()
-        if self.eth is not None:
-            json_dict['eth'] = self.eth.to_dict()
-        if self.ltc is not None:
-            json_dict['ltc'] = self.ltc.to_dict()
-        if self.bch is not None:
-            json_dict['bch'] = self.bch.to_dict()
+    @classmethod
+    def get_market_config_instance(cls, **kwargs):
+        return MarketConfig(**kwargs)
 
-        json_str = json.dumps(json_dict, indent=4)
-
-        with open(path, mode='w', encoding='UTF-8') as file:
-            file.write(json_str)
+    # def persist(self, path='budaConfig.json'):
+    #     json_dict = {
+    #         'sleep_time_sec': self.sleep_time_sec,
+    #         'sleep_time_after_block': self.sleep_time_after_block,
+    #         'resample_interval': self.resample_interval
+    #     }
+    #
+    #     if self.btc is not None:
+    #         json_dict['btc'] = self.btc.to_dict()
+    #     if self.eth is not None:
+    #         json_dict['eth'] = self.eth.to_dict()
+    #     if self.ltc is not None:
+    #         json_dict['ltc'] = self.ltc.to_dict()
+    #     if self.bch is not None:
+    #         json_dict['bch'] = self.bch.to_dict()
+    #
+    #     json_str = json.dumps(json_dict, indent=4)
+    #
+    #     with open(path, mode='w', encoding='UTF-8') as file:
+    #         file.write(json_str)
 
     def is_valid(self):
         return self.btc is not None or \
@@ -65,37 +59,8 @@ class BudaMarketConfig:
                self.ltc is not None or \
                self.eth is not None
 
-    # get a class attribute based on a string by using the python datamodel,
-    # since all object are dict
-    # https://docs.python.org/3.7/reference/datamodel.html#index-44
-    def get_market_config(self, market: str):
-        return self.__dict__[market]
-
-
-def buda_config_from_file(path=None):
-    if path is None:
-        path = 'budaConfig.json'
-
-    buda_config = BudaMarketConfig()
-
-    try:
-        with open(path, encoding='UTF-8') as file:
-            string = file.read()
-
-        json_dict: dict = json.loads(string)
-
-        for key in json_dict.keys():
-            val = json_dict[key]
-
-            if isinstance(val, dict):
-                setattr(buda_config, key, MarketConfig(**val))
-            else:
-                setattr(buda_config, key, val)
-
-    except (FileNotFoundError, json.JSONDecodeError):
-        buda_config = BudaMarketConfig()
-
-    return buda_config
+    def __dir__(self):
+        return ['sleep_time_sec', 'sleep_time_after_block', 'resample_interval', 'btc', 'eth', 'ltc', 'bch']
 
 
 class BudaMarketTradeEntry:
@@ -118,9 +83,14 @@ class BudaMarketTradeEntry:
             'price': self.price
         }
 
+    def __eq__(self, other):
+        if isinstance(other, BudaMarketTradeEntry):
+            return other.__dict__ == self.__dict__
+        else:
+            return False
+
     def __str__(self):
-        return '{timestamp: {}, amount: {}, price: {}, direction: {}}' \
-            .format(self.timestamp, self.amount, self.price, self.direction)
+        return self.__dict__
 
 
 # Small abstraction class to avoid interact directly with the list of trades.
@@ -166,6 +136,8 @@ class BudaMarketTradeList:
         for entry in new_entries:
             self.trade_list.append(BudaMarketTradeEntry(entry))
 
+        return self.trade_list
+
     def resample_ohlcv(self):
         self.trade_list = pd.DataFrame([entry.to_dict() for entry in self.trade_list]).set_index('timestamp')
         # parses the index from timestamp in seconds to a format understandable for pandas
@@ -181,16 +153,20 @@ class BudaMarketTradeList:
 
         ohlcv.index.name = 'date'
         self.trade_list = ohlcv
+        return self.trade_list
 
     def append_and_resample(self, new_entries: list):
         self.append_raw(new_entries)
         self.resample_ohlcv()
+        return self.trade_list
 
     def merge(self, trade_list):
         if not isinstance(trade_list, BudaMarketTradeList):
             raise TypeError('tradelist must be BudaMarketTradeList instance')
         elif not trade_list.is_resampled():
             raise ValueError('tradelist must be resampled to ohlc data before merge')
+        elif not self.is_resampled():
+            self.resample_ohlcv()
 
         merged: pd.DataFrame = self.trade_list.append(trade_list.trade_list)
         self.trade_list = merged.resample('1H').agg({
@@ -200,6 +176,7 @@ class BudaMarketTradeList:
             'close': 'last',
             'volume': 'sum'
         }).fillna(method='ffill')
+        return self.trade_list
 
     def _filter_by_timestamp(self):
         if self.filter_timestamp is not None and isinstance(self.trade_list, pd.DataFrame):

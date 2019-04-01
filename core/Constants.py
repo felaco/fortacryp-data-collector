@@ -1,0 +1,5 @@
+RECOVERED = 'recovered'
+UPDATED = 'updated'
+EXCEPTION = 'exception'
+REQUESTED = 'requested'
+CRITICAL = 'critical'

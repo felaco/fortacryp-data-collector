@@ -1,5 +1,2 @@
-keras
-jsonify
-python-dateutil
-python-box
-APScheduler
+requests
+pandas

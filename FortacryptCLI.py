@@ -1,12 +1,13 @@
 import argparse
 import sys
 
-from .Buda.BudaIntegration import BudaIntegration
+from Buda.BudaIntegration import BudaIntegration
+from core.config import config
 
 
 def handler(parsed_args):
-    path = parsed_args.config
-    buda = BudaIntegration(config_path=path)
+    config_dict = config
+    buda = BudaIntegration(config_dict.buda)
 
     if parsed_args.market == 'btc':
         buda.recover_btc()

@@ -1,4 +1,7 @@
 # Surbtc-ANN
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/51365674d17041219ba3104572953fd2)](https://app.codacy.com/app/felaco/fortacryp-data-collector?utm_source=github.com&utm_medium=referral&utm_content=felaco/fortacryp-data-collector&utm_campaign=Badge_Grade_Settings)
+
 Este es un proyecto personal en el cual se busca utilizar la data de las transacciones publicas del exchange de bitcoin Buda.com como entrada para una algún método de regresión.
 
 Este proyecto aún se encuentra en fase muy preliminar , puesto que no se ha logrado obtener resultados aceptables. La principal causa es, al igual que para cualquier serie de tiempo en cualquier mercado, es que es muy difícil capturar su variabilidad a partir de los datos históricos. En ese sentido es probablemente imposible determinar con precisión como se comportará el precio cambiario de una divisa.

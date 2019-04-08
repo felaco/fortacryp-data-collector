@@ -152,7 +152,7 @@ class BudaIntegrationTests(TestCase):
             self.should_block = True
             buda.recover_btc()
 
-        self.assertEqual(self.request_call_count, 1)
+        self.assertEqual(1, self.request_call_count)
 
     def test_generate_url(self, *args):
         burl = self.buda_integration._generate_url(self.market_config)

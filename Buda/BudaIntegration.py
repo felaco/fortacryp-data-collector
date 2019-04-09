@@ -10,12 +10,12 @@ import core.Constants as constants
 from dateutil import tz
 from datetime import datetime
 
-logger = logging.getLogger('BudaLogger')
+logger = logging.getLogger('FortacrypLogger')
 
 
 class BudaIntegration(BaseCryptoIntegration):
     def __init__(self, config: BudaMarketConfig):
-        super().__init__(config, BudaCsvPersistence('./'), 'timestamp')
+        super().__init__(config, BudaCsvPersistence('./'))
 
     def _generate_url(self, market_config: MarketConfig) -> str:
         market_id = getattr(MarketsId, market_config.market_id)

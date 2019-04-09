@@ -60,6 +60,9 @@ def _merge_append(ticks, stored):
 
 
 def _merge_stored_with_recovered_lists(ticks: list, stored: list):
+    if len(ticks) == 0:
+        return stored
+
     # index 0 is the header, so data is available from index 1 onward
     first_line = stored[1].split(',')
     last_tick = ticks[-1]
@@ -85,6 +88,9 @@ class CsvPersistor:
     def __init__(self, path):
         self.save_path = path
         self.market = None
+
+    def set_market(self, market):
+        self.market = market
 
     def persist(self, entry_list: list):
         assert self.market is not None

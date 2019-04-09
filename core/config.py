@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO,
 
 _config = {
     'crypto_compare': {
-        'baseUrl': 'https://min-api.cryptocompare.com',
+        'baseUrl': 'https://min-api.cryptocompare.com/data/histohour',
         'api_key': None,  # replace with your api key
         #  timestamps should be in seconds. Thats what crypto compare responds
         'retrieve_from_onward': 1364774400,  # last timestamp from where we should recover data

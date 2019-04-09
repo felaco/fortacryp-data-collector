@@ -4,7 +4,7 @@ from core.config import BaseConfig, MarketConfig
 class CryptoCompareConfig(BaseConfig):
     def __init__(self):
         super().__init__()
-        self.baseUrl: str = 'https://min-api.cryptocompare.com'
+        self.base_url: str = 'https://min-api.cryptocompare.com/data/histohour'
         self.api_key = None
 
     @classmethod

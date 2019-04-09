@@ -8,10 +8,9 @@ from core.Constants import *
 
 
 class BaseCryptoIntegration(ABC):
-    def __init__(self, config, persistor, timestamp_param_str):
+    def __init__(self, config, persistor):
         self.config = config
         self.persistor = persistor
-        self.timestamp_param_str = timestamp_param_str
 
     def recover_btc(self, market_id='btc'):
         self._generic_recover(market_id, persistor_name='btc', property_name='btc')

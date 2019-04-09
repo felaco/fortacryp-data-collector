@@ -32,7 +32,7 @@ class BudaCsvPersistence(BudaPersistenceBase):
         if self.market is None:
             raise AttributeError('market attribute of the instance should not be None')
 
-        path = os.path.join(self.path, self.market + '.csv')
+        path = os.path.join(self.path, 'Buda_' + self.market + '.csv')
         if not market_list.is_resampled():
             market_list.resample_ohlcv()
 

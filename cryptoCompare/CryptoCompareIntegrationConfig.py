@@ -16,4 +16,5 @@ class CryptoCompareConfig(BaseConfig):
         return MarketConfig(**kwargs)
 
     def __dir__(self):
-        return ['baseUrl', 'api_key', 'btc', 'eth', 'ltc', 'bch']
+        return ['baseUrl', 'api_key', 'retrieve_from_onward', 'sleep_time_after_block',
+                'sleep_time_sec', 'btc', 'eth', 'ltc', 'bch']

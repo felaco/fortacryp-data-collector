@@ -17,6 +17,7 @@ _config = {
         'retrieve_from_onward': 1364774400,  # last timestamp from where we should recover data
         # 2013 / 04 / 01 : 00:00:00
         'sleep_time_after_block': 300,
+        'sleep_time_sec': 1,
         'btc': {
             'last_stored_timestamp': None,
             'most_recent_timestamp': None,

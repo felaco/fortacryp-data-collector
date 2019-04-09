@@ -75,7 +75,7 @@ def _merge_stored_with_recovered_lists(ticks: list, stored: list):
 
 def _save_list(l: list, path: str):
     with open(path, 'w') as file:
-        file.writelines(l)
+        file.writelines(map(lambda line: line + '\n', l))
 
 
 class CsvPersistor:
@@ -97,14 +97,15 @@ class CsvPersistor:
         if self.market is None:
             raise AttributeError('market attribute of the instance should not be None')
 
-        save_path = os.path.join(os.path.realpath(self.save_path), self.market + '.csv')
+        save_path = os.path.join(os.path.realpath(self.save_path), 'cryptoCompare_' + self.market + '.csv')
 
         if os.path.isfile(save_path):
             with open(save_path) as file:
+                # readlines function doesnt split with each line!!.
                 line_list = file.read().split('\n')
                 line_list = _merge_stored_with_recovered_lists(entry_list, line_list)
 
         else:
             line_list = _tick_to_line(entry_list)
 
-        _save_list(line_list, self.save_path)
+        _save_list(line_list, save_path)

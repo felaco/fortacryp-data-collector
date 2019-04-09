@@ -24,9 +24,9 @@ class CryptoCompareIntegration(BaseCryptoIntegration):
             timestamp_url = ''
 
         return '{}?limit=2000&fsym={}&tsym={}{}'.format(self.config.base_url,
-                                                       market_config.market_id.upper(),
-                                                       self.to_currency,
-                                                       timestamp_url)
+                                                        market_config.market_id.upper(),
+                                                        self.to_currency,
+                                                        timestamp_url)
 
     def _do_loging(self, action, market_config: MarketConfig, **kwargs):
         if market_config.current_request_timestamp is None and action == constants.REQUESTED:

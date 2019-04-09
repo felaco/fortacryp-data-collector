@@ -85,6 +85,7 @@ class CsvPersistor:
     file. You can add other persistor, its only requisite is to have a persistor method wich receives a list.
     ... And maybe change its constructor, but you can do better
     """
+
     def __init__(self, path):
         self.save_path = path
         self.market = None
@@ -93,7 +94,9 @@ class CsvPersistor:
         self.market = market
 
     def persist(self, entry_list: list):
-        assert self.market is not None
+        if self.market is None:
+            raise AttributeError('market attribute of the instance should not be None')
+
         save_path = os.path.join(os.path.realpath(self.save_path), self.market + '.csv')
 
         if os.path.isfile(save_path):

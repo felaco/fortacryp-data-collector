@@ -29,16 +29,10 @@ class BudaCsvPersistence(BudaPersistenceBase):
             self.path = self.path + '/'
 
     def persist(self, market_list: BudaMarketTradeList):
-        assert self.market is not None
+        if self.market is None:
+            raise AttributeError('market attribute of the instance should not be None')
 
-        self._persist_csv(market_list, self.path + self.market + '.csv')
-
-    def persist_secondary(self, market_list: BudaMarketTradeList):
-        assert self.market is not None
-
-        self._persist_csv(market_list, self.path + self.market + '-sec.csv')
-
-    def _persist_csv(self, market_list: BudaMarketTradeList, path: str):
+        path = os.path.join(self.path, self.market + '.csv')
         if not market_list.is_resampled():
             market_list.resample_ohlcv()
 

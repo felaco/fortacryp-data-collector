@@ -94,10 +94,28 @@ _config = {
 
 
 class MarketConfig:
+    """
+    Class to store subconfiguration for a determined cryptocurrency. It is a convenience class in order
+    to access its members with dot notation instead of bracket notation.
+    Ok the names may not be the best or they may be confusing, but i dont want to change them 😭
+    """
 
     def __init__(self, market_id: str, most_recent_timestamp: int = None,
                  current_request_timestamp: int = None, first_stored_timestamp: int = None,
                  recovered_all: bool = False, last_stored_timestamp: int = None):
+        """
+        init the config
+        :param market_id: the cryptocurrency name in short format e.g. 'btc'
+        :param most_recent_timestamp: stores the oldest transaction of the response when we have
+        recovered all transaction previously. Usefull when restarting an aborted update
+        (i think that last part is not supported yet)
+        :param current_request_timestamp: stores the oldest transaction of the last request. Useful to know
+        when we are recovering
+        :param first_stored_timestamp: oldest timestamp that we have recovered.
+        :param recovered_all: boolean indicating if we have recovered all data previously
+        :param last_stored_timestamp: most recent timestamp that has been stored from a successfully
+        ended process
+        """
         self.last_stored_timestamp = last_stored_timestamp
         self.most_recent_timestamp = most_recent_timestamp
         self.first_stored_timestamp = first_stored_timestamp
@@ -110,24 +128,47 @@ class MarketConfig:
 
 
 class BaseConfig(ABC):
-    root_config = None
+    """
+    Abstract class that serve as a base for the specific configuration of each data source.
+    """
+    root_config = None  # reference to the master config, since this is suposed to be a subconfig,
+    # useful for asking the master config to persits itself
 
     def persist(self):
+        """
+        ask the root config to persist itself
+        :return: nothing
+        """
         if self.root_config is not None:
             self.root_config.persist()
 
     @classmethod
     @abstractmethod
     def get_instanciator(cls):
+        """
+        Get an instance of the child config using an empty constructor
+        :return: instance of a child config
+        """
         pass
 
     @classmethod
     @abstractmethod
     def get_market_config_instance(cls, **kwargs):
+        """
+        Get an instance of the child config pasing the keyed arguments to the
+        constructor
+        :param kwargs: arguments for the child class constructor
+        :return: instance of a child config
+        """
         pass
 
     @classmethod
     def from_dict(cls, config_dict: dict):
+        """
+        Construct a config based on a dictionary
+        :param config_dict:
+        :return: a config instance
+        """
         if is_valid_market_json(config_dict):
             buda_config = cls.get_instanciator()
 
@@ -144,6 +185,10 @@ class BaseConfig(ABC):
             raise TypeError('Configuration cannot be created from config dict')
 
     def to_dict(self):
+        """
+        returns this instance as a dictionary
+        :return: a dictionary representing this instance
+        """
         config_dict = {}
         attrs = dir(self)
 
@@ -165,6 +210,11 @@ class BaseConfig(ABC):
 
 
 class RootConfig(BaseConfig):
+    """
+    The father config. The config that rules them all.
+    If you want another data source, make sure to modify the from_dict method and add your new
+    subconfig as an attribute to this class
+    """
 
     @classmethod
     def get_instanciator(cls):
@@ -200,6 +250,12 @@ class RootConfig(BaseConfig):
         return 'crypto_compare' in config_dict and 'buda' in config_dict
 
     def persist(self):
+        """
+        Persist the config to a json file
+        This class should be the only one that persist the config to the dict, child subconfig should
+        have a reference to this config and ask this class to persist.
+        :return:
+        """
         config_dict = self.to_dict()
 
         json_str = json.dumps(config_dict, indent=4)
@@ -215,6 +271,11 @@ class RootConfig(BaseConfig):
 
 
 def load_config(persist_on_create=False):
+    """
+    Crates a new root config based on a json config, if it exists or create a default one if not
+    :param persist_on_create:
+    :return:
+    """
     dir_path = os.path.dirname(os.path.realpath(__file__))  # current project path.
     dir_path = os.path.dirname(dir_path)  # parent folder
     # useful for executing this script using cron and storing the config in the project folder,
@@ -241,4 +302,5 @@ def load_config(persist_on_create=False):
         return root_config
 
 
-config = load_config()
+config = load_config()  # config variable stores the stored config or the default one.
+# remember this line is executed as soon as the first import ocurs, and happens once i think ... i hope so

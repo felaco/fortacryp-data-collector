@@ -7,19 +7,21 @@ from cryptoCompare.CryptoCompareIntegrationConfig import CryptoCompareConfig
 from cryptoCompare.CryptoComparePersistence import _merge_prepend, _merge_append, _tick_to_line, \
     _merge_stored_with_recovered_lists
 
+_stored = [
+    'time,open,high,low,close,volumefrom',
+    '1554109200,4138.59,4142.9,4134.55,4141.95,1074.9',
+    '1554112800,4137.59,4141.9,4133.55,4140.95,1073.9',
+    '1554116400,4136.59,4140.9,4132.55,4139.95,1072.9',
+    '1554120000,4135.59,4139.9,4131.55,4138.95,1071.9',
+    '1554123600,4134.59,4138.9,4130.55,4137.95,1070.9',
+    '1554127200,4133.59,4137.9,4129.55,4136.95,1069.9',
+]
+
 
 class PersistenseTests(TestCase):
 
     def setUp(self) -> None:
-        self.stored = [
-            'time,open,high,low,close,volumefrom',
-            '1554109200,4138.59,4142.9,4134.55,4141.95,1074.9',
-            '1554112800,4137.59,4141.9,4133.55,4140.95,1073.9',
-            '1554116400,4136.59,4140.9,4132.55,4139.95,1072.9',
-            '1554120000,4135.59,4139.9,4131.55,4138.95,1071.9',
-            '1554123600,4134.59,4138.9,4130.55,4137.95,1070.9',
-            '1554127200,4133.59,4137.9,4129.55,4136.95,1069.9',
-        ]
+        self.stored = _stored.copy()
         self.tickets_prepend = [
             {"time": 1554094800, "close": 4138.26, "high": 4143.31, "low": 4134.65, "open": 4143.27,
              "volumefrom": 1028.36, "volumeto": 4250514.88},
@@ -121,7 +123,7 @@ class MockResponse:
         self.status_code = status_code
 
 
-m = mock.mock_open()
+m = mock.mock_open(read_data="\n".join(_stored))
 
 
 @mock.patch('time.sleep', return_value=True)

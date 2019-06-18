@@ -29,6 +29,9 @@ class BudaCsvPersistence(BudaPersistenceBase):
             self.path = self.path + '/'
 
     def persist(self, market_list: BudaMarketTradeList):
+        """
+        Makes sure the trades are merged with the stored ohcl data before calling the persistor
+        """
         if self.market is None:
             raise AttributeError('market attribute of the instance should not be None')
 

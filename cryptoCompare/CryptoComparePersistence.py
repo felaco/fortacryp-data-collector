@@ -29,7 +29,7 @@ def _merge_prepend(ticks, stored):
 
     if ticks is not None and len(ticks) > 0:
         ticks = _tick_to_line(ticks)
-        stored_to_file = ['time, open, high, low, close, volumefrom']
+        stored_to_file = ['time,open,high,low,close,volumefrom']
         stored_to_file.extend(ticks[:-1])  # should not store the last ticket, since it is contained in
         # the stored list
         stored_to_file.extend(stored[1:])
@@ -75,7 +75,14 @@ def _merge_stored_with_recovered_lists(ticks: list, stored: list):
 
 def _save_list(l: list, path: str):
     with open(path, 'w') as file:
-        file.writelines(map(lambda line: line + '\n', l))
+        is_first = True
+        for line in l:
+            if not is_first:
+                line = '\n' + line
+            else:
+                is_first = False
+
+            file.write(line)
 
 
 class CsvPersistor:

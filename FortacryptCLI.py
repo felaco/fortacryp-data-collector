@@ -1,10 +1,25 @@
 import argparse
 import sys
+import os
+import logging
 
 from Buda.BudaIntegration import BudaIntegration
 from core.config import config
 from cryptoCompare.CryptoCompareIntegration import CryptoCompareIntegration
 from krakenWebSocket.KrakenAlerts import KrakenIntegration
+
+logging.basicConfig(format='%(asctime)s:%(funcName)s:%(lineno)d - %(levelname)s: %(message)s')
+logger = logging.getLogger('FortacrypLogger')
+bot_id = os.getenv('FORTACRYP_BOT_ID', None)
+chat_id = os.getenv('FORTACRYP_CHAT_ID', None)
+
+if bot_id is None:
+    logger.warning('Environment variable FORTACRYP_BOT_ID is not set.'
+                   ' Are you sure? Telegram alerts will not work')
+
+if chat_id is None:
+    logger.warning('Environment variable FORTACRYP_CHAT_ID is not set.'
+                   ' Are you sure? Telegram alerts will not work')
 
 
 def handle_crypto_compare(parsed_args):
@@ -43,6 +58,8 @@ def handle_kraken_websocket(parsed_args):
     config_dict = config
     kraken = KrakenIntegration(config_dict.crypto_compare)
     kraken.subscribe()
+    i = 0
+    print(i)
 
 
 def config_crypto_compare_parser(subparser: argparse.ArgumentParser):

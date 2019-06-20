@@ -1,0 +1,5 @@
+requests==2.22.0
+pandas==0.24.2
+numpy==1.16.4
+coverage==4.5.3
+websocket-client==0.56.0

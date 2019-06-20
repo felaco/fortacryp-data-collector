@@ -3,15 +3,19 @@ from unittest import TestCase, mock
 import pandas as pd
 import numpy as np
 import datetime
+import logging
 
-from Buda.BudaIntegrationConfig import MarketsId  # i know it is not used, but prevents loading issues. So yeah... good code
+from Buda.BudaIntegrationConfig import \
+    MarketsId  # i know it is not used, but prevents loading issues. So yeah... good code
 from core.config import _config, RootConfig
-from krakenWebSocket.KrakenAlerts import KrakenIntegration, KrakenHistoricalData
+from krakenWebSocket.KrakenAlerts import KrakenIntegration, KrakenHistoricalData, KrakenSocketHandler
 
 df = pd.DataFrame(data=np.arange(12).reshape(2, 6),
                   columns=['time', 'open', 'high', 'low', 'close', 'volumefrom'])
 
 m = mock.mock_open()
+logger = logging.getLogger('dummy')
+logger.addHandler(logging.NullHandler())
 
 
 @mock.patch('builtins.open', m)
@@ -78,8 +82,21 @@ class KrakenHistoricalDataTests(TestCase):
 class DummyWebScocket:
     def __init__(self):
         self.initial_timestamp = 1534614057.321597
+        self.exception_after_n_responses = None
+        self.call_count = 0
+
+    def close(self):
+        pass
+
+    def send(self, *args, **kwargs):
+        pass
 
     def recv(self):
+        self.call_count += 1
+        if self.exception_after_n_responses is not None and self.call_count > self.exception_after_n_responses:
+            raise ConnectionError('Dummy Exception')
+
+        self.initial_timestamp += 1
         return json.dumps([
             0,
             [
@@ -169,7 +186,7 @@ class KrakenIntegrationTest(TestCase):
 
     def test_parse_ticket(self):
         dummy = DummyWebScocket()
-        dummy.initial_timestamp = 123
+        dummy.initial_timestamp = 122
         dummy = json.loads(dummy.recv())
 
         expected = {
@@ -216,3 +233,83 @@ class KrakenIntegrationTest(TestCase):
             result = {'open': market['open'], 'high': market['high'], 'low': market['low'],
                       'volume': market['volume'], 'close': market['close']}
             self.assertEqual(result, expected)
+
+
+class KrakenAlertDummy:
+    def __init__(self):
+        self.error_call_count = 0
+        self.last_message: str = ''
+
+    def send_error_alert(self, msg):
+        self.last_message = msg
+        self.error_call_count += 1
+
+
+class KrakenSocketHandlerTests(TestCase):
+    def setUp(self) -> None:
+        self.handler = KrakenSocketHandler()
+        self.handler.ws = DummyWebScocket()
+        self.handler.alertHandler = KrakenAlertDummy()
+        self.callback_count = 0
+        self.exception_after_n_calls = 0
+        self.exception_on_create_ws = False
+        self.should_exception_on_create_ws = False
+        self.handler.logger = logger
+
+    def test_fails_if_call_run_directly(self):
+        with self.assertRaises(AttributeError):
+            self.handler.run()
+
+        self.handler.pair = ['btc', 'eth']
+        with self.assertRaises(AttributeError):
+            self.handler.run()
+
+        self.handler.on_new_price_callback = self._dummy_callback
+        self.handler.pair = ['bad market']
+        markets_available = ('btc', 'eth', 'bch', 'ltc')
+
+        try:
+            self.handler.run()
+            self.fail('asd')
+        except Exception as e:
+            self.assertTrue(isinstance(e, ValueError))
+            msg = 'market: {} is not recognized. Should be one of {}'.format('bad market', markets_available)
+            self.assertEqual(e.args[0], msg)
+
+    def test_exit_on_kill_switch(self):
+        self.handler.connect_as_new_thread(['btc'], self._dummy_callback)
+
+        callback_count = self.callback_count
+        self.handler.kill_on_next_receiv()
+        self.handler.join()
+
+        self.assertEqual(self.callback_count, callback_count + 1)
+        # well if this test case fails, should hang forever (?)
+        self.assertFalse(self.handler.is_alive())
+
+    def test_reconnect_attemps(self):
+        with mock.patch('krakenWebSocket.KrakenAlerts.create_connection',
+                        side_effect=self._create_connection_dummy_mock):
+
+            self.should_exception_on_create_ws = True
+            self.exception_after_n_calls = 2
+            self.handler.ws = None
+            self.handler.connect_on_this_thread(['btc'], self._dummy_callback)
+            self.assertEqual(self.callback_count, 2)
+            self.assertEqual(self.handler.reconnect_attempts, 3)
+
+    def _create_connection_dummy_mock(self, url):
+        if self.exception_on_create_ws:
+            raise ConnectionError('Dummy connection error')
+
+        if self.should_exception_on_create_ws:
+            self.exception_on_create_ws = True
+
+        ws = DummyWebScocket()
+        if self.exception_after_n_calls > 0:
+            ws.exception_after_n_responses = self.exception_after_n_calls
+
+        return ws
+
+    def _dummy_callback(self, ticket):
+        self.callback_count += 1

@@ -3,7 +3,8 @@ import json
 import logging
 import os
 import threading
-import time
+from typing import Optional
+
 import requests
 import krakenWebSocket.KrakenConstants as constants
 
@@ -123,13 +124,116 @@ class KrakenHistoricalData:
         return dataframe
 
 
+class KrakenSocketHandler(threading.Thread):
+    """
+    Class that manages the websocket to Kraken exchange,
+    """
+
+    def __init__(self, url='wss://ws.kraken.com', daemon_thread: bool = True):
+        super().__init__(daemon=daemon_thread)
+        self.socket_url: str = url
+        self.ws = None
+        self.reconnect_attempts_limit: int = 3
+        self.reconnect_attempts: int = 0
+        self.logger = logger
+        self.pair: Optional[list] = None
+        self.alertHandler = KrakenTelegramAlerts()
+        self._kill_thread: bool = False
+        self.on_new_price_callback: Optional[callable] = None
+
+    def run(self) -> None:
+        if self.pair is None or not isinstance(self.pair, list):
+            raise AttributeError(
+                'Pair attribute is not set. You should use one of connect function, instead of run directly')
+
+        if self.on_new_price_callback is None:
+            raise AttributeError('Callback function is not set.'
+                                 ' You should use one of connect function, instead of run directly')
+
+        _validate_market_name(self.pair)
+        self._manage_thread()
+
+    def connect_as_new_thread(self, pair: list, on_new_price_callback: callable):
+        self._init_args(pair, on_new_price_callback)
+        self.start()
+
+    def connect_on_this_thread(self, pair: list, on_new_price_callback: callable):
+        self._init_args(pair, on_new_price_callback)
+        self.run()
+
+    def kill_on_next_receiv(self):
+        self._kill_thread = True
+
+    def _init_args(self, pair: list, on_new_price_callback: callable):
+        self.pair = pair
+        self.on_new_price_callback = on_new_price_callback
+
+    def _manage_thread(self):
+        self.reconnect_attempts_limit = 1 if self.reconnect_attempts_limit <= 0 else self.reconnect_attempts_limit
+        self.reconnect_attempts = 0
+
+        while self.reconnect_attempts < self.reconnect_attempts_limit:
+            if self.ws is None:
+                self.reconnect_attempts += 1
+                if self._create_connection():
+                    self.reconnect_attempts = 0
+
+            if self.ws is not None:
+                exception = self._manage_connection()
+                if exception is not None:
+                    self.alertHandler.send_error_alert('Disconected from socket due to exception: {}'.format(exception))
+                else:
+                    break
+
+        if not self._kill_thread:
+            self.alertHandler.send_error_alert('Max Attempts to connect to socket exceeded')
+
+    def _manage_connection(self):
+        while True:
+            try:
+                if self._kill_thread:
+                    return None
+
+                result = self.ws.recv()
+                result = json.loads(result)
+
+                if isinstance(result, list):
+                    self.on_new_price_callback(result)
+            except Exception as e:
+                self.ws.close()
+                self.ws = None
+                return e
+
+    def _create_connection(self) -> bool:
+        self.logger.info('Connecting to Kraken websocket')
+        try:
+            self.ws = create_connection(self.socket_url)
+            self.logger.info('Subscribing to pairs {}'.format(self.pair))
+            self.ws.send(json.dumps({
+                "event": "subscribe",
+                "pair": self.pair,
+                "subscription": {"name": "trade"}
+            }))
+            return True
+
+        except Exception as error:
+            self.logger.error('Caught this error: ' + repr(error))
+            if self.ws:
+                self.ws.close()
+
+            self.ws = None
+            return False
+
+
 class KrakenIntegration:
     def __init__(self, config, market_list=('btc',)):
-        self.ws = None
-        self.requests = requests  # just to make it easier to test
+        self.requests = requests  # just to make it easier to test by making easier to inject a mock
         self.curr_close_timestamp = datetime.datetime.now() + datetime.timedelta(hours=1)
         self.curr_close_timestamp = self.curr_close_timestamp.replace(minute=0, second=0, microsecond=0)
         self.curr_close_timestamp = self.curr_close_timestamp.timestamp()
+        self.alert_sender = KrakenTelegramAlerts()
+        self.websocket_handler = KrakenSocketHandler()
+        self.logger = logger
 
         if not isinstance(config, CryptoCompareConfig):
             raise TypeError('Parameter config must be a CryptoCompareConfig instance')
@@ -148,58 +252,16 @@ class KrakenIntegration:
     def subscribe(self):
         self._get_open_price()
 
-        if self.ws is None:
-            self._create_conection()
-
-        def _subscribe(ws, on_ticket_callback):
-            while True:
-                try:
-                    result = ws.recv()
-                    result = json.loads(result)
-                    if isinstance(result, list):
-                        on_ticket_callback(result)
-
-                except Exception as error:
-                    logger.error(error)
-                    raise ConnectionError('Exception in subscription to kraken websocket')
-
-        threading.Thread(target=_subscribe, args=(self.ws, self._on_ticket)).run()
-
-    def _on_ticket(self, ticket):
-        last_trade = self._parse_ticket(ticket)
-
-        print(last_trade)
-
-    def _create_conection(self):
         pair = []
         for _, market in self.market_list.items():
             pair.append(market['subscription_pair'])
 
-        logger.info('Connecting to kraken websocket...')
-        for _ in range(3):
-            try:
-                self.ws = create_connection("wss://ws.kraken.com")
-                logger.info('Subscribing to pairs {}'.format(pair))
-                self.ws.send(json.dumps({
-                    "event": "subscribe",
-                    # "event": "ping",
-                    # "pair": ["XBT/USD", ],
-                    "pair": pair,
-                    # "subscription": {"name": "ticker"}
-                    # "subscription": {"name": "spread"}
-                    "subscription": {"name": "trade"}
-                    # "subscription": {"name": "book", "depth": 10}
-                    # "subscription": {"name": "ohlc", "interval": 5}
-                }))
+        self.websocket_handler.connect(pair, self._on_ticket)
+        self.websocket_handler.join()
 
-            except Exception as error:
-                print('Caught this error: ' + repr(error))
-                self.ws = None
-                time.sleep(3)
-            else:
-                break
-        if self.ws is None:
-            raise ConnectionError('Could not connect to kraken websocket')
+    def _on_ticket(self, ticket):
+        last_trade = self._parse_ticket(ticket)
+        self.logger.info(last_trade)
 
     def _parse_ticket(self, socket_trade) -> dict:
         trade_list = socket_trade[constants.TRADE_LIST]
@@ -234,3 +296,29 @@ class KrakenIntegration:
 
         return self.market_list
 
+
+class KrakenTelegramAlerts:
+    def __init__(self):
+        self.bot_id = os.getenv('FORTACRYP_BOT_ID', None)
+        self.chat_id = os.getenv('FORTACRYP_CHAT_ID', None)
+        self.should_send = self.bot_id is not None and self.chat_id is not None
+        self.url = 'https://api.telegram.org/{}/sendMessage'.format(self.bot_id)
+        self.requests = requests
+        self.logger = logger
+
+    def send_error_alert(self, message):
+        if not self.should_send:
+            return
+
+        body = {
+            'chat_id': self.chat_id,
+            'text': 'Error: {}'.format(message)
+        }
+        r = self.requests.post(self.url, data=body)
+        self._on_response(r)
+
+    def _on_response(self, response):
+        if response.status_code != 200:
+            self.logger.info('Telegram alert sended successfully')
+        else:
+            self.logger.warning('Error sending Telegram Alert: {}'.format(response.text))

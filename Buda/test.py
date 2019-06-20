@@ -113,12 +113,14 @@ class BudaIntegrationTests(TestCase):
         self.should_block = False
         self.market_config = MarketConfig('btc')
         self.buda_integration = BudaIntegration(BudaMarketConfig())
+        self.buda_integration.should_log = False
 
     def test_executed_request_happy_case_not_recovered_all(self, *args):
         configuration = BudaMarketConfig()
         configuration.btc = self.market_config
 
         buda = BudaIntegration(configuration)
+        buda.should_log = False
 
         with mock.patch('core.BaseIntegration.requests.get', side_effect=self.mock_request_get):
             buda.recover_btc()
@@ -131,6 +133,7 @@ class BudaIntegrationTests(TestCase):
         configuration.btc = self.market_config
 
         buda = BudaIntegration(configuration)
+        buda.should_log = False
 
         with mock.patch('core.BaseIntegration.requests.get', side_effect=self.mock_request_get):
             self.should_block = True
@@ -147,6 +150,7 @@ class BudaIntegrationTests(TestCase):
 
         configuration.btc = self.market_config
         buda = BudaIntegration(configuration)
+        buda.should_log = False
 
         with mock.patch('core.BaseIntegration.requests.get', side_effect=self.mock_request_get):
             self.should_block = True

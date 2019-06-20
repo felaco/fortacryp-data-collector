@@ -16,6 +16,7 @@ logger = logging.getLogger('FortacrypLogger')
 class BudaIntegration(BaseCryptoIntegration):
     def __init__(self, config: BudaMarketConfig):
         super().__init__(config, BudaCsvPersistence('./'))
+        self.should_log = True
 
     def _generate_url(self, market_config: MarketConfig) -> str:
         market_id = getattr(MarketsId, market_config.market_id)
@@ -31,6 +32,9 @@ class BudaIntegration(BaseCryptoIntegration):
         )
 
     def _do_loging(self, action, market_config: MarketConfig, **kwargs):
+        if not self.should_log:
+            return
+
         if market_config.current_request_timestamp is None and action == constants.REQUESTED:
             return
 

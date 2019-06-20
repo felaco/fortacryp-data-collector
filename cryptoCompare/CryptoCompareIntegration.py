@@ -16,6 +16,7 @@ class CryptoCompareIntegration(BaseCryptoIntegration):
     def __init__(self, config: CryptoCompareIntegrationConfig):
         super().__init__(config, CsvPersistor('./'))
         self.to_currency = 'USD'
+        self.should_log = True
 
     def _generate_url(self, market_config: MarketConfig) -> str:
         if market_config.current_request_timestamp is not None:
@@ -29,6 +30,9 @@ class CryptoCompareIntegration(BaseCryptoIntegration):
                                                         timestamp_url)
 
     def _do_loging(self, action, market_config: MarketConfig, **kwargs):
+        if not self.should_log:
+            return
+
         if market_config.current_request_timestamp is None and action == constants.REQUESTED:
             return
 

@@ -133,6 +133,8 @@ class CryptoCompareIntegrationTest(TestCase):
         config = CryptoCompareConfig()
         config.retrieve_from_onward = 1364774400
         self.integration = CryptoCompareIntegration(config)
+        self.integration.should_log = False  # using dateutils gettz makes travis ci fails for some reason
+        # this doesn't ocurr when testing on wind 10 or ubuntu 18.04 (where i tested)
         self.call_count = 0
         self.market_config = MarketConfig('btc')
 

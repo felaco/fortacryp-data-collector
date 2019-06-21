@@ -1,10 +1,11 @@
 import logging
+from typing import Union
 
 from Buda.BudaIntegrationConfig import BudaMarketConfig, MarketsId, BudaMarketTradeList
 from Buda.BudaPersistence import BudaCsvPersistence
 
 from core.BaseIntegration import BaseCryptoIntegration
-from core.config import MarketConfig
+from core.configCore import MarketConfig
 import core.Constants as constants
 
 from dateutil import tz
@@ -63,19 +64,19 @@ class BudaIntegration(BaseCryptoIntegration):
                len(resp_json['trades']['entries']) == 0 or \
                resp_json['trades']['last_timestamp'] is None
 
-    def _update_market_config(self, resp_json: dict, market_config: MarketConfig):
+    def _update_market_config(self, resp_json: dict, market_config: MarketConfig) -> None:
         pass
 
     def _get_first_timestamp_from_response(self, resp_json: dict) -> int:
         return int(resp_json['trades']['entries'][0][0])
 
-    def _get_last_timestamp_from_response(self, resp_json: dict):
+    def _get_last_timestamp_from_response(self, resp_json: dict) -> Union[int, None]:
         if resp_json['trades']['last_timestamp'] is not None:
             return int(resp_json['trades']['last_timestamp'])
         else:
             return None
 
-    def _persist_new_entries(self, resp_json: dict, market_config: MarketConfig):
+    def _persist_new_entries(self, resp_json: dict, market_config: MarketConfig) -> None:
         buda_list = BudaMarketTradeList()
         buda_list.append_raw(resp_json['trades']['entries'])
 

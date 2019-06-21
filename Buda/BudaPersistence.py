@@ -28,7 +28,7 @@ class BudaCsvPersistence(BudaPersistenceBase):
         if not self.path.endswith('/'):
             self.path = self.path + '/'
 
-    def persist(self, market_list: BudaMarketTradeList):
+    def persist(self, market_list: BudaMarketTradeList) -> None:
         """
         Makes sure the trades are merged with the stored ohcl data before calling the persistor
         """

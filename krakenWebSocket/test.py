@@ -5,10 +5,9 @@ import numpy as np
 import datetime
 import logging
 
-from Buda.BudaIntegrationConfig import \
-    MarketsId  # i know it is not used, but prevents loading issues. So yeah... good code
-from core.config import _config, RootConfig
-from krakenWebSocket.KrakenAlerts import KrakenIntegration, KrakenHistoricalData, KrakenSocketHandler
+from core.configCore import _config
+from core.config import root_config_from_dict
+from krakenWebSocket.KrakenIntegration import KrakenIntegration, KrakenHistoricalData, KrakenSocketHandler
 
 df = pd.DataFrame(data=np.arange(12).reshape(2, 6),
                   columns=['time', 'open', 'high', 'low', 'close', 'volumefrom'])
@@ -180,7 +179,7 @@ class DummyRequests:
 @mock.patch('builtins.open', m)
 class KrakenIntegrationTest(TestCase):
     def setUp(self) -> None:
-        root_config = RootConfig.from_dict(_config)
+        root_config = root_config_from_dict(_config)
         root_config.crypto_compare.btc.recovered_all = True
         self.kraken = KrakenIntegration(root_config.crypto_compare)
 
@@ -200,7 +199,7 @@ class KrakenIntegrationTest(TestCase):
         self.assertEqual(parsed, expected)
 
     def test_fail_if_no_init(self):
-        root_config = RootConfig.from_dict(_config)
+        root_config = root_config_from_dict(_config)
         with self.assertRaises(ValueError):
             KrakenIntegration(root_config.crypto_compare)
 
@@ -219,7 +218,7 @@ class KrakenIntegrationTest(TestCase):
                   'volume': market['volume'], 'close': market['close']}
 
         self.assertEqual(expected, result)
-        config = RootConfig.from_dict(_config).crypto_compare
+        config = root_config_from_dict(_config).crypto_compare
         config.btc.recovered_all = True
         config.eth.recovered_all = True
         config.ltc.recovered_all = True
@@ -288,7 +287,7 @@ class KrakenSocketHandlerTests(TestCase):
         self.assertFalse(self.handler.is_alive())
 
     def test_reconnect_attemps(self):
-        with mock.patch('krakenWebSocket.KrakenAlerts.create_connection',
+        with mock.patch('krakenWebSocket.KrakenIntegration.create_connection',
                         side_effect=self._create_connection_dummy_mock):
 
             self.should_exception_on_create_ws = True

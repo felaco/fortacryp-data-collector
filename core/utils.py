@@ -1,4 +1,4 @@
-def is_valid_market_json(market_dict: dict):
+def is_valid_market_json(market_dict: dict) -> bool:
     return 'btc' in market_dict and \
            'eth' in market_dict and \
            'ltc' in market_dict and \

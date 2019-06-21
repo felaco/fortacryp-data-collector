@@ -1,7 +1,7 @@
 import json
 from unittest import TestCase, mock
 
-from core.config import MarketConfig
+from core.configCore import MarketConfig
 from cryptoCompare.CryptoCompareIntegration import CryptoCompareIntegration
 from cryptoCompare.CryptoCompareIntegrationConfig import CryptoCompareConfig
 from cryptoCompare.CryptoComparePersistence import _merge_prepend, _merge_append, _tick_to_line, \

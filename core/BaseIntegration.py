@@ -1,9 +1,10 @@
 import json
 from abc import ABC, abstractmethod
 import time
+from typing import Union
 
 import requests
-from core.config import MarketConfig
+from core.configCore import MarketConfig
 from core.Constants import *
 
 
@@ -26,19 +27,19 @@ class BaseCryptoIntegration(ABC):
         self.config = config
         self.persistor = persistor
 
-    def recover_btc(self, market_id='btc'):
+    def recover_btc(self, market_id='btc') -> None:
         self._generic_recover(market_id, persistor_name='btc', property_name='btc')
 
-    def recover_ltc(self, market_id='ltc'):
+    def recover_ltc(self, market_id='ltc') -> None:
         self._generic_recover(market_id, persistor_name='ltc', property_name='ltc')
 
-    def recover_eth(self, market_id='eth'):
+    def recover_eth(self, market_id='eth') -> None:
         self._generic_recover(market_id, persistor_name='ltc', property_name='ltc')
 
-    def recover_bch(self, market_id='bch'):
+    def recover_bch(self, market_id='bch') -> None:
         self._generic_recover(market_id, persistor_name='ltc', property_name='ltc')
 
-    def _generic_recover(self, market_id, persistor_name, property_name):
+    def _generic_recover(self, market_id, persistor_name, property_name) -> None:
         """
         Configure the persistor to store data for the cryptocurrency required and
         execute calls the iteration method to execute the chained requests
@@ -56,7 +57,7 @@ class BaseCryptoIntegration(ABC):
         action = self._recover(getattr(self.config, property_name))
         self._do_loging(action, getattr(self.config, property_name))
 
-    def _recover(self, market_config: MarketConfig):
+    def _recover(self, market_config: MarketConfig) -> str:
         """
         Decides if wich way we should iterate, if we have already recovered all data before or not.
         In each case there is a different way of iterate
@@ -72,7 +73,7 @@ class BaseCryptoIntegration(ABC):
             self._iterate_generic(market_config)
             return UPDATED
 
-    def _iterate_generic(self, market_config: MarketConfig):
+    def _iterate_generic(self, market_config: MarketConfig) -> None:
         """
         Way of iterating when we have already recovered all data before, so we want to update new data
         instead.
@@ -104,7 +105,7 @@ class BaseCryptoIntegration(ABC):
                 if hasattr(self.config, 'sleep_time_after_exception'):
                     time.sleep(self.config.sleep_time_after_exception)
 
-    def _not_all_recovered_generic_iteration(self, market_config: MarketConfig):
+    def _not_all_recovered_generic_iteration(self, market_config: MarketConfig) -> None:
         """
         Execute the iteration for the case we have not recovered all historical.
         :param market_config: subconfiguration for a certain cryptocurrency
@@ -117,7 +118,7 @@ class BaseCryptoIntegration(ABC):
         market_config.current_request_timestamp = None
         self.config.persist()
 
-    def _do_not_all_recovered_iteration(self, market_config: MarketConfig):
+    def _do_not_all_recovered_iteration(self, market_config: MarketConfig) -> None:
         """
         Inner function for the iteration when the historical data has not been recovered before.
         Calls the function that makes the request to the server, updates the config file and persist it
@@ -151,7 +152,7 @@ class BaseCryptoIntegration(ABC):
             if hasattr(self.config, 'sleep_time_after_exception'):
                 time.sleep(self.config.sleep_time_after_exception)
 
-    def _do_request(self, market_config: MarketConfig):
+    def _do_request(self, market_config: MarketConfig) -> dict:
         """
         Execute the request call to the server, calls the function to persist the response data,
         updates the config to standarize the way we know wich timestamp we have got, so we can
@@ -177,7 +178,7 @@ class BaseCryptoIntegration(ABC):
 
         return resp_json
 
-    def _validate_persistor(self):
+    def _validate_persistor(self) -> bool:
         if hasattr(self.persistor, 'set_market') and \
                 callable(self.persistor.set_market) and \
                 hasattr(self.persistor, 'persist') and \
@@ -198,7 +199,7 @@ class BaseCryptoIntegration(ABC):
         pass
 
     @abstractmethod
-    def _do_loging(self, action, market_config: MarketConfig, **kwargs):
+    def _do_loging(self, action, market_config: MarketConfig, **kwargs) -> None:
         """
         Executes the loging  based on the action passed
         :param action: action indicating what is the thing we are trying to log
@@ -220,7 +221,7 @@ class BaseCryptoIntegration(ABC):
         pass
 
     @abstractmethod
-    def _update_market_config(self, resp_json: dict, market_config: MarketConfig):
+    def _update_market_config(self, resp_json: dict, market_config: MarketConfig) -> None:
         """
         Not used. Not sure why i added it. Too afraid to delete
         :param resp_json: the json response of the server. It is a dict
@@ -239,7 +240,7 @@ class BaseCryptoIntegration(ABC):
         pass
 
     @abstractmethod
-    def _get_last_timestamp_from_response(self, resp_json: dict) -> int:
+    def _get_last_timestamp_from_response(self, resp_json: dict) -> Union[int, None]:
         """
         Abstract method. Should return the oldest timestamp of the response
         :param resp_json: the json response of the server. It is a dict
@@ -248,7 +249,7 @@ class BaseCryptoIntegration(ABC):
         pass
 
     @abstractmethod
-    def _persist_new_entries(self, resp_json: dict, market_config: MarketConfig):
+    def _persist_new_entries(self, resp_json: dict, market_config: MarketConfig) -> None:
         """
         Calls the persistor in order to save new data
         :param resp_json: the json response of the server. It is a dict

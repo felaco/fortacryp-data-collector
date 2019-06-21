@@ -6,7 +6,7 @@ import logging
 from Buda.BudaIntegration import BudaIntegration
 from core.config import config
 from cryptoCompare.CryptoCompareIntegration import CryptoCompareIntegration
-from krakenWebSocket.KrakenAlerts import KrakenIntegration
+from krakenWebSocket.KrakenIntegration import KrakenIntegration
 
 logging.basicConfig(format='%(asctime)s:%(funcName)s:%(lineno)d - %(levelname)s: %(message)s')
 logger = logging.getLogger('FortacrypLogger')

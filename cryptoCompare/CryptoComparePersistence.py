@@ -1,7 +1,8 @@
 import os
+from typing import List, Union, Dict, Optional
 
 
-def _tick_to_line(ticks: list):
+def _tick_to_line(ticks: List[Dict[str, Union[float, int]]]) -> List[str]:
     res = []
     for tick in ticks:
         res.append('{},{},{},{},{},{}'.format(
@@ -15,7 +16,7 @@ def _tick_to_line(ticks: list):
     return res
 
 
-def _merge_prepend(ticks, stored):
+def _merge_prepend(ticks: List[Dict[str, Union[float, int]]], stored: List[str]) -> List[str]:
     """
     merge the saved data in a csv file with the new data from a request to crypto compare.
     The new data is prepended to the csv data, since it is considered older than the stored.
@@ -38,7 +39,7 @@ def _merge_prepend(ticks, stored):
         return stored
 
 
-def _merge_append(ticks, stored):
+def _merge_append(ticks: List[Dict[str, Union[float, int]]], stored: List[str]):
     """
     Merge the saved data in a csv file with new data from a request to crypto compare. The new data
     is appended to the ending of the list of stored data, since it is suposed to be newer.
@@ -59,7 +60,7 @@ def _merge_append(ticks, stored):
     return stored_to_file
 
 
-def _merge_stored_with_recovered_lists(ticks: list, stored: list):
+def _merge_stored_with_recovered_lists(ticks: List[Dict[str, Union[float, int]]], stored: List[str]):
     if len(ticks) == 0:
         return stored
 
@@ -93,14 +94,14 @@ class CsvPersistor:
     ... And maybe change its constructor, but you can do better
     """
 
-    def __init__(self, path):
-        self.save_path = path
-        self.market = None
+    def __init__(self, path: str):
+        self.save_path: str = path
+        self.market: Optional[str] = None
 
-    def set_market(self, market):
+    def set_market(self, market: str):
         self.market = market
 
-    def persist(self, entry_list: list):
+    def persist(self, entry_list: List[Dict[str, Union[float, int]]]):
         if self.market is None:
             raise AttributeError('market attribute of the instance should not be None')
 

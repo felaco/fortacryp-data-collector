@@ -1,7 +1,8 @@
 from unittest import TestCase
 
 from Buda.BudaIntegrationConfig import BudaMarketConfig
-from core.config import _config, RootConfig
+from core.configCore import _config
+from core.config import root_config_from_dict
 
 
 def deep_clone_dict(d: dict):
@@ -44,7 +45,7 @@ class TestConfig(TestCase):
                 self.assertEqual(val, d2[key])
 
     def test_init_base_empty_config(self):
-        config_obj = RootConfig.from_dict(self.base_config)
+        config_obj = root_config_from_dict(self.base_config)
         self.compare_config_with_dict(config_obj, self.base_config)
 
     def test_from_dict_child_config(self):
@@ -71,5 +72,5 @@ class TestConfig(TestCase):
         self.compare_dict_with_dict(ret_dict, self.base_config['buda'])
 
     def test_reference_to_root_config_from_child(self):
-        config = RootConfig.from_dict(self.base_config)
+        config = root_config_from_dict(self.base_config)
         self.assertEqual(id(config), id(config.buda.root_config))

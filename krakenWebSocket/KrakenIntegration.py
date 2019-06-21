@@ -3,35 +3,35 @@ import json
 import logging
 import os
 import threading
-from typing import Optional
+from typing import Optional, Any, Dict, Union, List
 
 import requests
-import krakenWebSocket.KrakenConstants as constants
+import krakenWebSocket.KrakenConstants as Constants
 
 import pandas as pd
 from websocket import create_connection
 
 from cryptoCompare.CryptoCompareIntegrationConfig import CryptoCompareConfig
 
-markets_available = ('btc', 'eth', 'bch', 'ltc')
+_markets_available = ('btc', 'eth', 'bch', 'ltc')
 logger = logging.getLogger('FortacrypLogger')
 
 
-def _validate_market_name(market_list: list):
+def _validate_market_name(market_list: List[str]):
     for market in market_list:
-        if market not in markets_available:
-            raise ValueError('market: {} is not recognized. Should be one of {}'.format(market, markets_available))
+        if market not in _markets_available:
+            raise ValueError('market: {} is not recognized. Should be one of {}'.format(market, _markets_available))
 
 
 class KrakenConfig:
-    def __init__(self, config):
+    def __init__(self, config: CryptoCompareConfig):
         if not isinstance(config, CryptoCompareConfig):
             raise TypeError('Parameter config must be a CryptoCompareConfig instance')
 
-        self.btc = None
-        self.eth = None
-        self.bch = None
-        self.ltc = None
+        self.btc: Optional[Dict[str, Any]] = None
+        self.eth: Optional[Dict[str, Any]] = None
+        self.bch: Optional[Dict[str, Any]] = None
+        self.ltc: Optional[Dict[str, Any]] = None
 
         markets = {
             'btc': {
@@ -76,14 +76,14 @@ class KrakenConfig:
 
 
 class KrakenHistoricalData:
-    def __init__(self, market_list=('btc',)):
+    def __init__(self, market_list: List[str] = ('btc',)):
         _validate_market_name(market_list)
-        self.base_path = './'
-        self.csv_name = 'cryptoCompare_{}.csv'
-        self.indexed_data = {}
-        self.market_list = market_list
+        self.base_path: str = './'
+        self.csv_name: str = 'cryptoCompare_{}.csv'
+        self.indexed_data: Dict[str, pd.DataFrame] = {}
+        self.market_list: List[str] = market_list
 
-    def load_data(self):
+    def load_data(self) -> None:
         for market in self.market_list:
             path = os.path.join(self.base_path, self.csv_name.format(market))
             if not os.path.isfile(path):
@@ -91,7 +91,7 @@ class KrakenHistoricalData:
 
             self.indexed_data[market] = pd.read_csv(path)
 
-    def append(self, dict_data, market):
+    def append(self, dict_data: Dict[str, Union[float, int]], market: str) -> pd.DataFrame:
         ohlc = {
             'open': [dict_data['open'], ],
             'high': [dict_data['high'], ],
@@ -126,7 +126,31 @@ class KrakenHistoricalData:
 
 class KrakenSocketHandler(threading.Thread):
     """
-    Class that manages the websocket to Kraken exchange,
+    Class that manages the websocket to Kraken exchange, has some reconection abilities
+    when something goes wrong. Since extends from Thread can be used in a new thread or in the same one
+    depending of the way you call it.
+
+    socket = KrakenSocketHandler()
+    socket.connect_as_new_thread(['btc], callback)
+
+    manages the socket in a new daemon thread and calls the callback when a new price arrives.
+    Note that you have to use a new instance when a thread stop after being created.
+
+    socket.connect_as_new_thread(['btc], callback)
+    socket.join()
+    socket.connect_as_new_thread(['btc], callback)
+
+    is an illegal way of using a Thread, so it will throw a runtime error.
+
+    socket.connect_on_this_thread()  # is a blocking operation, since it runs in the same thread
+    but can be stopped safely and be reused.
+
+    To stop a socket you can do it with:
+    socket.kill_on_next_receiv()
+
+    it will stop the socket, whether be a new thread or not AFTER a new price arrives. This happens
+    because there is no way of forcefully kill a thread in python, so it will just check a condition in
+    a while loop and this check ocurrs after the function socket.reveiv() stop of blocking the thread.
     """
 
     def __init__(self, url='wss://ws.kraken.com', daemon_thread: bool = True):
@@ -153,22 +177,23 @@ class KrakenSocketHandler(threading.Thread):
         _validate_market_name(self.pair)
         self._manage_thread()
 
-    def connect_as_new_thread(self, pair: list, on_new_price_callback: callable):
+    def connect_as_new_thread(self, pair: list, on_new_price_callback: callable) -> None:
         self._init_args(pair, on_new_price_callback)
         self.start()
 
-    def connect_on_this_thread(self, pair: list, on_new_price_callback: callable):
+    def connect_on_this_thread(self, pair: list, on_new_price_callback: callable) -> None:
+        self._kill_thread = False
         self._init_args(pair, on_new_price_callback)
         self.run()
 
-    def kill_on_next_receiv(self):
+    def kill_on_next_receiv(self) -> None:
         self._kill_thread = True
 
-    def _init_args(self, pair: list, on_new_price_callback: callable):
+    def _init_args(self, pair: list, on_new_price_callback: callable) -> None:
         self.pair = pair
         self.on_new_price_callback = on_new_price_callback
 
-    def _manage_thread(self):
+    def _manage_thread(self) -> None:
         self.reconnect_attempts_limit = 1 if self.reconnect_attempts_limit <= 0 else self.reconnect_attempts_limit
         self.reconnect_attempts = 0
 
@@ -188,7 +213,7 @@ class KrakenSocketHandler(threading.Thread):
         if not self._kill_thread:
             self.alertHandler.send_error_alert('Max Attempts to connect to socket exceeded')
 
-    def _manage_connection(self):
+    def _manage_connection(self) -> Optional[Exception]:
         while True:
             try:
                 if self._kill_thread:
@@ -228,9 +253,10 @@ class KrakenSocketHandler(threading.Thread):
 class KrakenIntegration:
     def __init__(self, config, market_list=('btc',)):
         self.requests = requests  # just to make it easier to test by making easier to inject a mock
-        self.curr_close_timestamp = datetime.datetime.now() + datetime.timedelta(hours=1)
-        self.curr_close_timestamp = self.curr_close_timestamp.replace(minute=0, second=0, microsecond=0)
-        self.curr_close_timestamp = self.curr_close_timestamp.timestamp()
+        self.curr_close_timestamp: datetime.datetime = datetime.datetime.now() + datetime.timedelta(hours=1)
+        self.curr_close_timestamp: datetime.datetime = self.curr_close_timestamp.replace(minute=0, second=0,
+                                                                                         microsecond=0)
+        self.curr_close_timestamp: float = self.curr_close_timestamp.timestamp()
         self.alert_sender = KrakenTelegramAlerts()
         self.websocket_handler = KrakenSocketHandler()
         self.logger = logger
@@ -249,36 +275,36 @@ class KrakenIntegration:
 
             self.market_list[market] = market_instance
 
-    def subscribe(self):
+    def subscribe(self) -> None:
         self._get_open_price()
 
         pair = []
         for _, market in self.market_list.items():
             pair.append(market['subscription_pair'])
 
-        self.websocket_handler.connect(pair, self._on_ticket)
+        self.websocket_handler.connect_on_this_thread(pair, self._on_ticket)
         self.websocket_handler.join()
 
-    def _on_ticket(self, ticket):
+    def _on_ticket(self, ticket: list) -> None:
         last_trade = self._parse_ticket(ticket)
         self.logger.info(last_trade)
 
-    def _parse_ticket(self, socket_trade) -> dict:
-        trade_list = socket_trade[constants.TRADE_LIST]
+    def _parse_ticket(self, socket_trade: list) -> dict:
+        trade_list = socket_trade[Constants.TRADE_LIST]
         trade = {
-            'market': socket_trade[constants.MARKET_INDEX],
-            'timestamp': float(trade_list[-1][constants.TIME_INDEX]),
-            'price': float(trade_list[-1][constants.PRICE_INDEX])
+            'market': socket_trade[Constants.MARKET_INDEX],
+            'timestamp': float(trade_list[-1][Constants.TIME_INDEX]),
+            'price': float(trade_list[-1][Constants.PRICE_INDEX])
         }
 
         volume = 0
         for entry in trade_list:
-            volume += float(entry[constants.VOLUME_INDEX])
+            volume += float(entry[Constants.VOLUME_INDEX])
 
         trade['volume'] = volume
         return trade
 
-    def _get_open_price(self):
+    def _get_open_price(self) -> Dict[str, Any]:
         api_url = 'https://api.kraken.com/0/public/OHLC'
 
         for _, market in self.market_list.items():
@@ -289,10 +315,10 @@ class KrakenIntegration:
 
             json_response = json.loads(r.text)
             last_entry = json_response['result'][market['response_key']][-1]
-            market['open'] = last_entry[constants.REST_OPEN_INDEX]
-            market['high'] = last_entry[constants.REST_HIGH_INDEX]
-            market['low'] = last_entry[constants.REST_LOW_INDEX]
-            market['volume'] = last_entry[constants.REST_VOLUME_INDEX]
+            market['open'] = last_entry[Constants.REST_OPEN_INDEX]
+            market['high'] = last_entry[Constants.REST_HIGH_INDEX]
+            market['low'] = last_entry[Constants.REST_LOW_INDEX]
+            market['volume'] = last_entry[Constants.REST_VOLUME_INDEX]
 
         return self.market_list
 
@@ -306,7 +332,7 @@ class KrakenTelegramAlerts:
         self.requests = requests
         self.logger = logger
 
-    def send_error_alert(self, message):
+    def send_error_alert(self, message) -> None:
         if not self.should_send:
             return
 
@@ -317,7 +343,7 @@ class KrakenTelegramAlerts:
         r = self.requests.post(self.url, data=body)
         self._on_response(r)
 
-    def _on_response(self, response):
+    def _on_response(self, response) -> None:
         if response.status_code != 200:
             self.logger.info('Telegram alert sended successfully')
         else:

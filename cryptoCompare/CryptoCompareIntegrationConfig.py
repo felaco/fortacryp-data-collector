@@ -1,4 +1,4 @@
-from core.config import BaseConfig, MarketConfig
+from core.configCore import BaseConfig, MarketConfig
 
 
 class CryptoCompareConfig(BaseConfig):

@@ -4,10 +4,10 @@ from dateutil import tz
 from datetime import datetime
 
 from core.BaseIntegration import BaseCryptoIntegration
-from core.config import MarketConfig
+from core.configCore import MarketConfig
 from cryptoCompare import CryptoCompareIntegrationConfig
 from cryptoCompare.CryptoComparePersistence import CsvPersistor
-import core.Constants as constants
+import core.Constants as Constants
 
 logger = logging.getLogger('FortacrypLogger')
 
@@ -15,8 +15,8 @@ logger = logging.getLogger('FortacrypLogger')
 class CryptoCompareIntegration(BaseCryptoIntegration):
     def __init__(self, config: CryptoCompareIntegrationConfig):
         super().__init__(config, CsvPersistor('./'))
-        self.to_currency = 'USD'
-        self.should_log = True
+        self.to_currency: str = 'USD'
+        self.should_log: bool = True
 
     def _generate_url(self, market_config: MarketConfig) -> str:
         if market_config.current_request_timestamp is not None:
@@ -29,15 +29,15 @@ class CryptoCompareIntegration(BaseCryptoIntegration):
                                                         self.to_currency,
                                                         timestamp_url)
 
-    def _do_loging(self, action, market_config: MarketConfig, **kwargs):
+    def _do_loging(self, action, market_config: MarketConfig, **kwargs) -> None:
         if not self.should_log:
             return
 
-        if market_config.current_request_timestamp is None and action == constants.REQUESTED:
+        if market_config.current_request_timestamp is None and action == Constants.REQUESTED:
             return
 
         market_id = market_config.market_id
-        if action == constants.REQUESTED:
+        if action == Constants.REQUESTED:
             timestamp_sec = int(market_config.current_request_timestamp)
 
             local_tz = tz.gettz('America/Santiago')
@@ -47,11 +47,11 @@ class CryptoCompareIntegration(BaseCryptoIntegration):
             logger.info('{} entries recovered from crypto compare. Date : {}'.format(self.persistor.market,
                                                                                      string))
 
-        elif action == constants.UPDATED:
+        elif action == Constants.UPDATED:
             logger.info('CryptoCompare-{}: entries has been updated'.format(market_id))
-        elif action == constants.RECOVERED:
+        elif action == Constants.RECOVERED:
             logger.info('CryptoCompare-{}: entries has been recovered'.format(market_id))
-        elif action == constants.EXCEPTION:
+        elif action == Constants.EXCEPTION:
             follow_up = kwargs.get('exception', None)
             follow_up = ' With response code: {}'.format(follow_up.args[0]) if follow_up is not None else None
             logger.warning('CryptoCompare-{}: Houston we have a problem. We have been blocked!!!!!{}'.format(
@@ -71,5 +71,5 @@ class CryptoCompareIntegration(BaseCryptoIntegration):
     def _get_last_timestamp_from_response(self, resp_json: dict) -> int:
         return int(resp_json['TimeFrom'])
 
-    def _persist_new_entries(self, resp_json: dict, market_config: MarketConfig):
+    def _persist_new_entries(self, resp_json: dict, market_config: MarketConfig) -> None:
         self.persistor.persist(resp_json['Data'])

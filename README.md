@@ -1,35 +1,42 @@
-# Surbtc-ANN
+# Fortacrypt Data collector
 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/51365674d17041219ba3104572953fd2)](https://app.codacy.com/app/felaco/fortacryp-data-collector?utm_source=github.com&utm_medium=referral&utm_content=felaco/fortacryp-data-collector&utm_campaign=Badge_Grade_Settings)
+[![Build Status](https://travis-ci.org/felaco/fortacryp-data-collector.svg?branch=master)](https://travis-ci.org/felaco/fortacryp-data-collector)
 
-Este es un proyecto personal en el cual se busca utilizar la data de las transacciones publicas del exchange de bitcoin Buda.com como entrada para una algún método de regresión.
+Proyecto utilizado para recopilar datos de exchanges de crypto monedas y almacenarlos.
+Actualmente solo los almacena en archivos csv.
 
-Este proyecto aún se encuentra en fase muy preliminar , puesto que no se ha logrado obtener resultados aceptables. La principal causa es, al igual que para cualquier serie de tiempo en cualquier mercado, es que es muy difícil capturar su variabilidad a partir de los datos históricos. En ese sentido es probablemente imposible determinar con precisión como se comportará el precio cambiario de una divisa.
+## Fuentes de datos
+Actualmente se ha integrado a tres fuentes de datos: [Buda](https://www.buda.com), [crypto compare](https://www.cryptocompare.com/)
+y [kraken](https://www.kraken.com). Este ultimo posee una integración unicamente mediante websocket.
+Las crypto monedas que se recuperan mediante los script son: Bitcoin (btc), Ethereum (eth), Bitcoin cash
+(bch) y litecoin (ltc) que son las crypto monedas que transa el exchange Chileno Buda
+ 
 
-En un futuro implementaré algunas ideas que tengo en mente, ademas de otras que encuentre mientras continúo estudiando. Estas ideas se mostrarán utilizando jupyter notebooks.
+## Configuración 
+El repositorio no cuenta con un archivo de configuración creado, pero este se genera al correr el proyecto por
+primera vez en la carpeta raiz con el nombre de config.json. Los valores por defecto se encuentran en el
+script core.config._config. Realmente no es necesario editar la configuración y no se aconseja hacerlo,
+puesto que los valores que se insertan allí se utilizan para mantener la consistencia entre diferentes 
+ejecuciones.
 
-## Ejecución
-Es recomendable utilizar una distribución de python basada en [anaconda](https://www.anaconda.com/download/), puesto que facilita la instalación de paquetes dependientes del SO, que de lo contrario necesitarían ser compilados manualmente.
+Los datos historicos se almacenan en formato ohlc en intervalos de 1 hora.
 
-Crear un entorno virtual utilizando anaconda
+## Ejecutar
+El punto de entrada del proyecto es la interfaz cli FortacryptCLI.py 
+por lo que la forma de rescatar los datos para cada integración es:
 
-    conda create -n surbtc
-    # sistemas tipo unix
-    source activate surbtc
-    # windows
-    activate surbtc
+`python FortacryptCLI.py {integración} {moneda}`
 
-Instalar las dependencias. Éstas se encuentran separadas en dos archivos, en conda_requirements se encuentran las dependencias que que son más fácil instalarlas desde anaconda, mientras que pip_requirements contiene las dependencias de pip.
+siendo integración una de las opciones: buda, cryptoCompare o kraken.
 
-    conda install --file conda_requirements.txt
-    pip install -r pip_requirements.txt
+### Kraken
+La integración con kraken está pensada para servir como trigger para alertas mediante telegram
+indicando si se cumple alguna condición (alguna señal buy/sell de algún indicador o la variación % en 24h, etc)
+por lo que necesita de datos hístoricos. La integración con kraken fallará si es que no se han recuperado
+los datos historicos de esa moneda mediante el uso de la integración con crypto compare.
+Además se requiere que se hayan seteado las variables de entorno `FORTACRYP_BOT_ID` y `FORTACRYP_CHAT_ID`
+que corresponden a la identidad del bot (ver: [Cómo crear un bot de telegram](https://core.telegram.org/bots#3-how-do-i-create-a-bot))
+y el chat hacia el cual se quiere notificar. Sin estas variables no es posible saber como realizar la notificación.
 
-Los scripts mas importantes son surbtc.py y flask_api.py. El primero se encarga de recuperar todas las transacciones que han ocurrido en el exchange en bitcoin y ether, para almacenarlas en archivos .csv. El segundo, crea un miniservidor en flask para comunicarse con otras aplicaciones. Los demás scripts son utilidades para preprocesamiento y entrenamiento de redes neuronales.
 
-Recuperar las transacciones desde el exchange [buda](https://www.buda.com)
-
-    pip surbtc.py
-
-exponer las funcionalidades principales con un api rest
-
-    pip flask_api.py

@@ -50,6 +50,12 @@ def _merge_append(ticks: List[Dict[str, Union[float, int]]], stored: List[str]):
     :return: merged list
     """
 
+    if len(stored) < 2:
+        raise AssertionError('The csv file has too few lines. Cannot append on it')
+
+    if stored[-1] == '':
+        stored.pop()
+
     stored_to_file = stored
     # remember: stored is a list of strings in csv format, so i take the last element and the first
     # column as the last timestamp

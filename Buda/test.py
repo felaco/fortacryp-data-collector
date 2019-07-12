@@ -121,8 +121,8 @@ class BudaIntegrationTests(TestCase):
 
         buda = BudaIntegration(configuration)
         # date utils gettz works as expected when used from cli, but fails when unittesting on
-        # ubuntu (in windows works well) don't ask me why :'(
-        # buda.should_log = False
+        # ubuntu (in windows works well) maybe it is related to mocking open() function (?)
+        buda.should_log = False
 
         with mock.patch('core.BaseIntegration.requests.get', side_effect=self.mock_request_get):
             buda.recover_btc()
@@ -135,7 +135,7 @@ class BudaIntegrationTests(TestCase):
         configuration.btc = self.market_config
 
         buda = BudaIntegration(configuration)
-        # buda.should_log = False
+        buda.should_log = False
 
         with mock.patch('core.BaseIntegration.requests.get', side_effect=self.mock_request_get):
             self.should_block = True
@@ -152,7 +152,7 @@ class BudaIntegrationTests(TestCase):
 
         configuration.btc = self.market_config
         buda = BudaIntegration(configuration)
-        # buda.should_log = False
+        buda.should_log = False
 
         with mock.patch('core.BaseIntegration.requests.get', side_effect=self.mock_request_get):
             self.should_block = True

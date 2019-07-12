@@ -1,13 +1,16 @@
-import json
-from unittest import TestCase, mock
-import pandas as pd
-import numpy as np
 import datetime
+import json
 import logging
+from unittest import TestCase, mock
 
-from core.configCore import _config
+import numpy as np
+import pandas as pd
+
 from core.config import root_config_from_dict
-from krakenWebSocket.KrakenIntegration import KrakenIntegration, KrakenHistoricalData, KrakenSocketHandler
+from core.configCore import _config
+from krakenWebSocket.KrakenIntegration import KrakenIntegration, KrakenSocketHandler, \
+    _ticket_list_to_dict
+from krakenWebSocket.KrakenTicketHandler import KrakenHistoricalDataBase
 
 df = pd.DataFrame(data=np.arange(12).reshape(2, 6),
                   columns=['time', 'open', 'high', 'low', 'close', 'volumefrom'])
@@ -31,13 +34,13 @@ class KrakenHistoricalDataTests(TestCase):
         self.df = df.copy(deep=True)
 
     def test_init_fail(self):
-        with self.assertRaises(ValueError):
-            KrakenHistoricalData(['btc', 'not_existing_market'])
+        with self.assertRaises(KeyError):
+            KrakenHistoricalDataBase('random market')
 
     def test_merge_success_and_col_order_unchanged(self):
-        kraken = KrakenHistoricalData()
-        kraken.indexed_data['btc'] = self.df
-        appended = kraken.append(self.new_data, 'btc')
+        kraken = KrakenHistoricalDataBase('btc')
+        kraken.data = self.df
+        appended = kraken.append(self.new_data)
 
         colname1 = np.asarray(self.df.columns.values)
         colname2 = np.asarray(appended.columns.values)
@@ -56,26 +59,20 @@ class KrakenHistoricalDataTests(TestCase):
         self.assertEqual(float(last_row['volumefrom'][0]), float(self.new_data['volume']))
 
     def test_merge_fail_timestamp_diff(self):
-        kraken = KrakenHistoricalData()
-        kraken.indexed_data['btc'] = self.df
+        kraken = KrakenHistoricalDataBase('btc')
+        kraken.data = self.df
 
         timestamp = int(datetime.datetime.now().replace(second=0, minute=0, microsecond=0).timestamp())
         self.new_data['last_timestamp_socket'] = timestamp - 3600
         # should not raise an exception
-        kraken.append(self.new_data, 'btc')
+        kraken.append(self.new_data)
 
-        kraken = KrakenHistoricalData()
-        kraken.indexed_data['btc'] = self.df
+        kraken = KrakenHistoricalDataBase('btc')
+        kraken.data = self.df
 
         self.new_data['last_timestamp_socket'] = timestamp - 3601
         with self.assertRaises(ValueError):
-            kraken.append(self.new_data, 'btc')
-
-    def test_merge_fail_no_market(self):
-        kraken = KrakenHistoricalData()
-        kraken.indexed_data['btc'] = self.df
-        with self.assertRaises(KeyError):
-            kraken.append(self.new_data, 'non_existing_market')
+            kraken.append(self.new_data)
 
 
 class DummyWebScocket:
@@ -195,7 +192,7 @@ class KrakenIntegrationTest(TestCase):
             'volume': 0.18305568
         }
 
-        parsed = self.kraken._parse_ticket(dummy)
+        parsed = _ticket_list_to_dict(dummy)
         self.assertEqual(parsed, expected)
 
     def test_fail_if_no_init(self):
@@ -210,12 +207,11 @@ class KrakenIntegrationTest(TestCase):
             'high': '9181.0',
             'low': '9106.1',
             'volume': '127.50098346',
-            'close': None
         }
 
         market = self.kraken._get_open_price()['btc']
         result = {'open': market['open'], 'high': market['high'], 'low': market['low'],
-                  'volume': market['volume'], 'close': market['close']}
+                  'volume': market['volume']}
 
         self.assertEqual(expected, result)
         config = root_config_from_dict(_config).crypto_compare
@@ -230,7 +226,7 @@ class KrakenIntegrationTest(TestCase):
         self.assertEqual(3, len(market_list.keys()))
         for _, market in market_list.items():
             result = {'open': market['open'], 'high': market['high'], 'low': market['low'],
-                      'volume': market['volume'], 'close': market['close']}
+                      'volume': market['volume']}
             self.assertEqual(result, expected)
 
 
@@ -312,3 +308,21 @@ class KrakenSocketHandlerTests(TestCase):
 
     def _dummy_callback(self, ticket):
         self.callback_count += 1
+
+
+class KrakenDataBaseTest(TestCase):
+    def setUp(self) -> None:
+        array = np.asarray([[1561485600, 1561489200, 1561492800],
+                            [11336.89, 11329.88, 11381.36],
+                            [11375.54, 11395.47, 11394.01],
+                            [11218.93, 11302.7, 11368.19],
+                            [11329.88, 11381.36, 11385.96],
+                            [4543.82, 1907.43, 308.71]]).transpose()
+
+        df = pd.DataFrame(array,
+                          columns=['time', 'open', 'high', 'low', 'close', 'volumefrom'])
+
+        i = 0
+
+    def test_i(self):
+        self.assertTrue(True)

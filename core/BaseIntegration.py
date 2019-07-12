@@ -105,6 +105,10 @@ class BaseCryptoIntegration(ABC):
                 if hasattr(self.config, 'sleep_time_after_exception'):
                     time.sleep(self.config.sleep_time_after_exception)
 
+        market_config.last_stored_timestamp = market_config.most_recent_timestamp
+        market_config.current_request_timestamp = None
+        self.config.persist()
+
     def _not_all_recovered_generic_iteration(self, market_config: MarketConfig) -> None:
         """
         Execute the iteration for the case we have not recovered all historical.
@@ -114,6 +118,7 @@ class BaseCryptoIntegration(ABC):
         while not market_config.recovered_all:
             self._do_not_all_recovered_iteration(market_config)
 
+        market_config.most_recent_timestamp = market_config.last_stored_timestamp
         market_config.recovered_all = True  # have you ever tried to ctrl+S more than once, just to be sure?
         market_config.current_request_timestamp = None
         self.config.persist()

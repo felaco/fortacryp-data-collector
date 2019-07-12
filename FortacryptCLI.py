@@ -6,7 +6,7 @@ import logging
 from Buda.BudaIntegration import BudaIntegration
 from core.config import config
 from cryptoCompare.CryptoCompareIntegration import CryptoCompareIntegration
-from krakenWebSocket.KrakenIntegration import KrakenIntegration
+from krakenWebSocket.KrakenIntegration import KrakenIntegration, KrakenHistoricalDataIntegration
 
 logging.basicConfig(format='%(asctime)s:%(funcName)s:%(lineno)d - %(levelname)s: %(message)s')
 logger = logging.getLogger('FortacrypLogger')
@@ -56,10 +56,9 @@ def handle_buda(parsed_args):
 
 def handle_kraken_websocket(parsed_args):
     config_dict = config
-    kraken = KrakenIntegration(config_dict.crypto_compare)
-    kraken.subscribe()
-    i = 0
-    print(i)
+    # kraken = KrakenIntegration(config_dict.crypto_compare)
+    # kraken.subscribe()
+    kraken = KrakenHistoricalDataIntegration()
 
 
 def config_crypto_compare_parser(subparser: argparse.ArgumentParser):

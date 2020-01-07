@@ -18,15 +18,15 @@ class KrakenPersistor:
         self._read_buffer()
         df = pd.DataFrame(new_data, columns=self._get_columns_names())
 
-        last_timestamp = self.last_timestamp()
-        df = df[df[self.timestamp_key] > last_timestamp]
+        last_timestamp = self.get_most_recent_timestamp()
+        df = df[df[self.timestamp_key] > last_timestamp]  # stores only the entries newer than last_timestamp
 
-        self.buffer_df.append(df)
+        self.buffer_df = self.buffer_df.append(df)
         self.buffer_df.to_csv(self._get_csv_path())
 
-    def last_timestamp(self) -> int:
+    def get_most_recent_timestamp(self) -> int:
         self._read_buffer()
-        if self.buffer_df.size > 0:
+        if self.buffer_df.size <= 0:
             return self.default_first_timestamp
 
         return int(self.buffer_df[self.timestamp_key].values[-1])
@@ -39,6 +39,8 @@ class KrakenPersistor:
         path = self._get_csv_path()
         if self.buffer_df is None and os.path.isfile(path):
             self.buffer_df = pd.read_csv(path)
+        elif self.buffer_df is not None:
+            return self.buffer_df
         else:
             # if file doesnt exists, creates an empty dataframe
             arr = np.array([[], [], [], [], [], []]).transpose()  # 6 columns, no rows

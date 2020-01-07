@@ -81,7 +81,7 @@ class KrakenHistoricalDataBase:
         self.logger.info(self.data.tail())
         self.data.to_csv(self._get_save_path(self.market))
 
-    def _should_apped_new(self, timestamp) -> bool:
+    def _should_apped_new(self, timestamp) -> None:
         last_stored = float(self.data['time'].values[-1])
         return timestamp - last_stored > 3600
 

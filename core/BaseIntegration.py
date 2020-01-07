@@ -1,11 +1,20 @@
+import datetime
 import json
 from abc import ABC, abstractmethod
 import time
-from typing import Union
+from enum import Enum
+from typing import Union, Optional
 
 import requests
 from core.configCore import MarketConfig
 from core.Constants import *
+
+
+class IntegrationMarkets(Enum):
+    BTC = 'btc'
+    ETH = 'eth'
+    BCH = 'bch'
+    LTC = 'ltc'
 
 
 class BaseCryptoIntegration(ABC):
@@ -17,6 +26,7 @@ class BaseCryptoIntegration(ABC):
     with new data. This is done like this because the ending condition is diferent for each case, and the way
     to update the config file is different too.
     """
+
     def __init__(self, config, persistor):
         """
         init the class with the configuration
@@ -65,7 +75,7 @@ class BaseCryptoIntegration(ABC):
         :return: a constant indicating which action has been made
         """
         self._validate_persistor()
-    
+
         if not market_config.recovered_all:
             self._not_all_recovered_generic_iteration(market_config)
             return RECOVERED
@@ -261,4 +271,76 @@ class BaseCryptoIntegration(ABC):
         :param market_config: subconfiguration for a certain cryptocurrency
         :return: nothing
         """
+        pass
+
+
+def _timestamp_to_str(timestamp: int) -> str:
+    date = datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc)
+    return date.strftime('%Y-%m-%d %H:%M')
+
+
+class CoreIntegration(ABC):
+    def __init__(self, configuration=None, persistor=None):
+        self.config = configuration
+        self.persistor = persistor
+        self.requests = requests
+
+    def recover(self, market: IntegrationMarkets):
+        if not hasattr(self.config, market.value):
+            self.do_logging(CRITICAL, None, f'Configuration has no attribute {market.value}')
+        else:
+            self.do_main_loop(getattr(self.config, market.value))
+
+    def do_main_loop(self, market_config):
+        last_data = None
+        while not self.is_ending_condition_achieved(last_data):
+            try:
+                response_list = self.do_request(market_config)
+                self.persistor.persist(response_list)
+                last_data = self.update_last_data(response_list)
+                from_date = _timestamp_to_str(self.get_older_entry_ts(response_list))
+                to_date = _timestamp_to_str(self.get_most_recent_entry_ts(response_list))
+                self.do_logging(UPDATED, market_config, f'Recovered data from {from_date} to {to_date} GMT-0')
+
+            except (requests.RequestException, ConnectionError) as e:
+                self.do_logging(EXCEPTION, market_config, str(e))
+                if hasattr(self.config, 'sleep_time_after_exception'):
+                    time.sleep(self.config.sleep_time_after_exception)
+
+        self.do_logging(RECOVERED, market_config)
+
+    def do_request(self, market_config):
+        r = self.requests.get(self.generate_url(market_config))
+        if r.status_code != 200:
+            raise ConnectionError(f'Response code: {r.status_code} from server')
+
+        return self.parse_response_to_list(json.loads(r.text), market_config)
+
+    @abstractmethod
+    def generate_url(self, market_config) -> str:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def is_ending_condition_achieved(self, last_data: Optional[dict]) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def update_last_data(self, data_list) -> int:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def parse_response_to_list(self, response, market_config=None) -> list:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def do_logging(self, action: str, market_config, msg: Optional[str] = None) -> None:
+        raise NotImplementedError()
+
+
+class ForwardRecoverIntegration(CoreIntegration, ABC):
+    def update_last_data(self, data_list) -> int:
+        return self.get_most_recent_entry_ts(data_list)
+
+    @abstractmethod
+    def get_most_recent_entry_ts(self, data_list) -> int:
         pass

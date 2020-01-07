@@ -2,19 +2,18 @@ import datetime
 import json
 import logging
 import threading
-from dataclasses import dataclass
-from typing import Optional, Any, Dict, Union, Tuple
+from typing import Optional, Any, Dict, Union, Tuple, List
 
 import requests
 from websocket import create_connection
 
-import krakenWebSocket.KrakenConstants as Constants
-from core.BaseIntegration import ForwardRecoverIntegration
-from core.Constants import *
+import kraken.KrakenConstants as Constants
+from core.BaseIntegration import BaseCryptoIntegration
+from core.configCore import MarketConfig
 from cryptoCompare.CryptoCompareIntegrationConfig import CryptoCompareConfig
-from krakenWebSocket.KrakenAlerts import KrakenTelegramAlerts, KrakenBaseAlerts
-from krakenWebSocket.KrakenPersistors import KrakenPersistor
-from krakenWebSocket.KrakenTicketHandler import BaseKrakenTicketHandler
+from kraken.KrakenAlerts import KrakenTelegramAlerts, KrakenBaseAlerts
+from kraken.KrakenPersistors import KrakenPersistor
+from kraken.KrakenTicketHandler import BaseKrakenTicketHandler
 
 _markets_available = ('btc', 'eth', 'bch', 'ltc')
 logger = logging.getLogger('FortacrypLogger')
@@ -25,20 +24,55 @@ def _validate_market_name(market: str):
         raise ValueError('market: {} is not recognized. Should be one of {}'.format(market, _markets_available))
 
 
-@dataclass
-class KrakenMarketConfig:
-    subscription_pair: str
-    ohlc_pair: str
-    response_key: str
-    key: str
-    next_frame_ts: Optional[int] = None
-
-@dataclass
 class KrakenConfig:
-    btc: KrakenMarketConfig = KrakenMarketConfig('XBT/USD', 'XBTUSD', 'XXBTZUSD', 'btc')
-    eth: KrakenMarketConfig = KrakenMarketConfig('ETH/USD', 'ETHUSD', 'XETHZUSD', 'eth')
-    bch: KrakenMarketConfig = KrakenMarketConfig('BCH/USD', 'BCHUSD', 'BCHUSD', 'bch')
-    ltc: KrakenMarketConfig = KrakenMarketConfig('LTC/USD', 'LTCUSD', 'XLTCZUSD', 'ltc')
+    def __init__(self, config: CryptoCompareConfig):
+        if not isinstance(config, CryptoCompareConfig):
+            raise TypeError('Parameter config must be a CryptoCompareConfig instance')
+
+        self.btc: Optional[Dict[str, Any]] = None
+        self.eth: Optional[Dict[str, Any]] = None
+        self.bch: Optional[Dict[str, Any]] = None
+        self.ltc: Optional[Dict[str, Any]] = None
+
+        markets = {
+            'btc': {
+                'subscription_pair': 'XBT/USD',
+                'ohlc_pair': 'XBTUSD',
+                'response_key': 'XXBTZUSD',
+                'key': 'btc'
+            },
+            'eth': {
+                'subscription_pair': 'ETH/USD',
+                'ohlc_pair': 'ETHUSD',
+                'response_key': 'XETHZUSD',
+                'key': 'eth'
+            },
+            'bch': {
+                'subscription_pair': 'BCH/USD',
+                'ohlc_pair': 'BCHUSD',
+                'response_key': 'BCHUSD',
+                'key': 'bch'
+            },
+            'ltc': {
+                'subscription_pair': 'LTC/USD',
+                'ohlc_pair': 'LTCUSD',
+                'response_key': 'XLTCZUSD',
+                'key': 'ltc'
+            },
+        }
+
+        for market in markets:
+            if hasattr(config, market):
+                config_attr = getattr(config, market)
+                attr = {
+                    'completed': config_attr.recovered_all,
+                    'last_timestamp': config_attr.last_stored_timestamp,
+                    'subscription_pair': markets[market]['subscription_pair'],
+                    'ohlc_pair': markets[market]['ohlc_pair'],
+                    'response_key': markets[market]['response_key'],
+                    'key': markets[market]['key']
+                }
+                setattr(self, market, attr)
 
 
 class KrakenSocketHandler(threading.Thread):
@@ -171,6 +205,11 @@ class KrakenSocketHandler(threading.Thread):
             return False
 
 
+class TicketHandler:
+    def __init__(self):
+        self.alert_handler = None
+
+
 def _ticket_list_to_dict(socket_trade: list) -> Dict[str, Union[float, str]]:
     mapper = {
         'XBT/USD': 'btc',
@@ -288,66 +327,73 @@ class KrakenIntegration:
         return self.market_list
 
 
-class KrakenHistoricalDataIntegration(ForwardRecoverIntegration):
-    def __init__(self, persistor: KrakenPersistor = None):
-        super().__init__(None, persistor)
+class KrakenHistoricalDataIntegration(BaseCryptoIntegration):
+    def __init__(self, persistor: KrakenPersistor = None, pair: str = 'XBTUSD'):
         if persistor is None:
             persistor = KrakenPersistor()
 
-        self.persistor: KrakenPersistor = persistor
-        self.config = KrakenConfig()
-        self._curr_market = 'btc'
-        self.logger = logger
+        super().__init__(None, persistor)
+        self.pair = pair
+        self._market_response_key = 'XXBTZUSD'
+        self.last_timestamp = persistor.last_timestamp()
 
-    def generate_url(self, market_config: KrakenMarketConfig) -> str:
-        url = 'https://api.kraken.com/0/public/OHLC'
-        since = self.persistor.get_most_recent_timestamp()
-        return f'{url}?pair={market_config.ohlc_pair}&interval=60&since={since}'
+    def _generic_recover(self, market_id: str, persistor_name, property_name) -> None:
+        limit_timestamp = datetime.datetime.now().replace(minute=0, second=0, microsecond=0).timestamp()
 
-    def is_ending_condition_achieved(self, last_data: Optional[dict]) -> bool:
-        if last_data is None:
-            return False
-        else:
-            now = datetime.datetime.now().replace(minute=0, second=0, microsecond=0).timestamp()
-            return self.persistor.get_most_recent_timestamp() >= now
+        while self.last_timestamp < limit_timestamp:
+            r = self._do_request(None)
+            self.last_timestamp = r[-1]['timestamp']
+            self.persistor.persist(r)
 
-    def get_most_recent_entry_ts(self, data_list: list) -> int:
-        return data_list[-1]['timestamp']
+    def _do_request(self, market_config: Optional[MarketConfig]) -> List[Dict[str, Union[float, int]]]:
+        url = self._generate_url(None)
+        response = requests.get(url)
 
-    def get_older_entry_ts(self, data_list) -> int:
-        return data_list[0]['timestamp']
+        if response != 200:
+            raise ConnectionError(response.status_code)
 
-    def parse_response_to_list(self, response, market_config: Optional[KrakenMarketConfig] = None) -> list:
-        response_list = response['result'][market_config.response_key]
+        response = json.loads(response.text)
+        return self._parse_response_to_list(response)
 
-        def mapper(entry):
-            return {
+    def _generate_url(self, market_config: Optional[MarketConfig]) -> str:
+        path = 'https://api.kraken.com/0/public/OHLC?pair={}&interval=60&since={}'
+        return path.format(self.pair, self.last_timestamp)
+
+    def _do_loging(self, action, market_config: MarketConfig, **kwargs) -> None:
+        pass
+
+    def _iterate_not_recovered_ending_condition(self, resp_json: dict, market_config: MarketConfig) -> bool:
+        pass
+
+    def _update_market_config(self, resp_json: dict, market_config: MarketConfig) -> None:
+        pass
+
+    def _get_first_timestamp_from_response(self, resp_json: dict) -> int:
+        pass
+
+    def _get_last_timestamp_from_response(self, resp_json: dict) -> Union[int, None]:
+        pass
+
+    def _persist_new_entries(self, resp_json: dict, market_config: MarketConfig) -> None:
+        pass
+
+    def _parse_response_to_list(self, response: dict):
+        err = response['error']
+        if len(err) > 0:
+            raise ConnectionAbortedError(err)
+
+        li = response['result'][self._market_response_key]
+        parsed_list: List[Dict[str, Union[float, int]]] = []
+
+        for entry in li:
+            parsed = {
+                'timestamp': entry[Constants.REST_TIMESTAMP_INDEX],
                 'open': entry[Constants.REST_OPEN_INDEX],
                 'high': entry[Constants.REST_HIGH_INDEX],
                 'low': entry[Constants.REST_LOW_INDEX],
                 'close': entry[Constants.REST_CLOSE_INDEX],
-                'volume': entry[Constants.REST_VOLUME_INDEX],
-                'timestamp': entry[Constants.REST_TIMESTAMP_INDEX]
+                'volume': entry[Constants.REST_VOLUME_INDEX]
             }
+            parsed_list.append(parsed)
 
-        parsed = list(map(mapper, response_list))
-        # the last key from response contains the timestamp from the last commited frame,
-        # so if the last entry of the list is greater than that, it means it is
-        # an uncommited frame and should be discarted
-        last = response['result']['last']
-        last_parsed = parsed[-1]['timestamp']
-        if last < last_parsed:
-            parsed.pop()
-
-        return parsed
-
-    def do_logging(self, action: str, market_config: KrakenMarketConfig, message: Optional[str] = None) -> None:
-        if not self.logger:
-            return
-
-        if action == EXCEPTION:
-            self.logger.warning(message)
-        elif action == CRITICAL:
-            self.logger.error(message)
-        elif action == UPDATED:
-            self.logger.info(f'{market_config.key.upper()}: {message}')
+        return parsed_list

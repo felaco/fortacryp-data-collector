@@ -4,6 +4,7 @@ import os
 import logging
 
 from Buda.BudaIntegration import BudaIntegration
+from core.BaseIntegration import IntegrationMarkets
 from core.config import config
 from cryptoCompare.CryptoCompareIntegration import CryptoCompareIntegration
 from krakenWebSocket.KrakenIntegration import KrakenIntegration, KrakenHistoricalDataIntegration
@@ -55,10 +56,10 @@ def handle_buda(parsed_args):
 
 
 def handle_kraken_websocket(parsed_args):
-    config_dict = config
     # kraken = KrakenIntegration(config_dict.crypto_compare)
     # kraken.subscribe()
     kraken = KrakenHistoricalDataIntegration()
+    kraken.recover(IntegrationMarkets.BTC)
 
 
 def config_crypto_compare_parser(subparser: argparse.ArgumentParser):
@@ -101,10 +102,7 @@ crypto_compare_parser = subparsers.add_parser(
 )
 config_crypto_compare_parser(crypto_compare_parser)
 
-buda_parser = subparsers.add_parser(
-    'buda',
-    help='Recover historical data from buda exchange'
-)
+buda_parser = subparsers.add_parser('buda', help='Recover historical data from buda exchange')
 config_buda_exchange_parser(buda_parser)
 
 kraken_parser = subparsers.add_parser('kraken', help='Subscribe to kraken websocket')

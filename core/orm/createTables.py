@@ -1,5 +1,5 @@
 from core.model.models import CryptoCurrency
-from .orm import Session, Base, engine
+from .orm import session as session_maker, Base, engine
 from ..model.models import Exchange
 from config import BaseConfig
 import logging
@@ -7,9 +7,9 @@ import logging
 _logger = logging.getLogger('FortacrypLogger')
 
 
-def create_tables():
+def create_tables(log=True):
     Base.metadata.create_all(engine)
-    session = Session()
+    session = session_maker()
 
     exchanges = BaseConfig.Exchanges
     kraken = Exchange('Kraken', exchanges.Kraken.url, exchanges.Kraken.ms_ts)
@@ -30,8 +30,11 @@ def create_tables():
         session.add(bch)
 
         session.commit()
-        _logger.info('Tables correctly created. Initial data inserted')
-    except:
+        if log:
+            _logger.info('Tables correctly created. Initial data inserted')
+    except Exception as e:
+        if log:
+            _logger.error(e)
         session.rollback()
 
     finally:

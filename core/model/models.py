@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Boolean, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Float, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.dynamic import AppenderQuery
 
@@ -31,7 +32,7 @@ class CryptoCurrency(Base):
     name: str = Column(String(20))
     mnemonic: str = Column(String(5))
     ohlc_data: AppenderQuery = relationship('OHLC', back_populates='currency', lazy='dynamic')
-    trades: AppenderQuery = relationship('Trades', back_populates='exchange', lazy='dynamic')
+    trades: AppenderQuery = relationship('Trades', back_populates='currency', lazy='dynamic')
 
     def __init__(self, name, mnemonic):
         self.name = name
@@ -47,7 +48,7 @@ class OHLC(Base):
     low: float = Column(Float)
     close: float = Column(Float)
     volume: float = Column(Float)
-    timestamp: int = Column(Integer)
+    date: datetime = Column(DateTime)
     exchange_id: int = Column(Integer, ForeignKey(BaseConfig.DBNames.exchange + '.id_exchange'))
     currency_id: int = Column(Integer, ForeignKey(BaseConfig.DBNames.currency + '.id_currency'))
     currency: CryptoCurrency = relationship('CryptoCurrency', uselist=False, back_populates='ohlc_data')
@@ -58,15 +59,17 @@ class OHLC(Base):
                  low: float,
                  close: float,
                  volume: float,
-                 timestamp: int,
-                 exchange_id: Optional[int]):
+                 date: datetime,
+                 exchange_id: Optional[int] = None,
+                 currency_id: Optional[int] = None):
         self.open = open_price
         self.high = high
         self.low = low
         self.close = close
         self.volume = volume
-        self.timestamp = timestamp
+        self.date = date
         self.exchange_id = exchange_id
+        self.currency_id = currency_id
 
 
 class Trades(Base):
@@ -76,14 +79,14 @@ class Trades(Base):
     price: float = Column(Float)
     volume: float = Column(Float)
     direction: str = Column(String(10))
-    timestamp: int = Column(BigInteger)
+    date: datetime = Column(DateTime)
     exchange_id: int = Column(Integer, ForeignKey(BaseConfig.DBNames.exchange + '.id_exchange'))
     currency_id: int = Column(Integer, ForeignKey(BaseConfig.DBNames.currency + '.id_currency'))
-    currency: CryptoCurrency = relationship('CryptoCurrency', uselist=False, back_populates='ohlc_data')
-    exchange: Exchange = relationship('Exchange', uselist=False, back_populates='ohlc_data')
+    currency: CryptoCurrency = relationship('CryptoCurrency', uselist=False, back_populates='trades')
+    exchange: Exchange = relationship('Exchange', uselist=False, back_populates='trades')
 
-    def __init__(self, price: float, volume: float, timestamp: int, direction: str):
+    def __init__(self, price: float, volume: float, date: datetime, direction: str):
         self.price = price
         self.volume = volume
-        self.timestamp = timestamp
+        self.date = date
         self.direction = direction

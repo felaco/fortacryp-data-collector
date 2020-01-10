@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 
@@ -8,7 +9,7 @@ class OhlcFrame:
     high: float
     low: float
     close: float
-    timestamp: int
+    date: datetime
     volume: Optional[float]
 
     def to_dict(self):
@@ -17,6 +18,22 @@ class OhlcFrame:
             'high': self.high,
             'low': self.low,
             'close': self.close,
-            'timestamp': self.timestamp,
+            'date': self.date,
             'volume': self.volume
+        }
+
+
+@dataclass
+class TradesEntry:
+    price: float
+    volume: float
+    direction: str
+    date: datetime
+
+    def to_dict(self):
+        return {
+            'price': self.price,
+            'volume': self.volume,
+            'direction': self.direction,
+            'date': self.date
         }

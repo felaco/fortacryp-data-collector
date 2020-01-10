@@ -17,9 +17,9 @@ class BaseConfig:
             url = 'https://www.kraken.com'
             sleep_time_between_requests = 1
             ms_ts = True
-            recover_from: 1420081200 * (10 ** 9)  # 01/01/2015 00:00 in nanoseconds
+            recover_from = 1420081200 * (10 ** 9)  # 01/01/2015 00:00 in nanoseconds
 
         class Buda:
             url = 'https://www.buda.com/chile'
             ms_ts = False
-            recover_from: 123
+            recover_from = 123

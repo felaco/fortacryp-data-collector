@@ -6,6 +6,7 @@ import logging
 from Buda.BudaIntegration import BudaIntegration
 from core.BaseIntegration import IntegrationMarkets
 from core.config import config
+from core.orm.createTables import create_tables
 from cryptoCompare.CryptoCompareIntegration import CryptoCompareIntegration
 from krakenWebSocket.KrakenIntegration import KrakenIntegration, KrakenHistoricalDataIntegration
 
@@ -62,6 +63,10 @@ def handle_kraken_websocket(parsed_args):
     kraken.recover(IntegrationMarkets.BTC)
 
 
+def handle_create_tables(parsed_args):
+    create_tables()
+
+
 def config_crypto_compare_parser(subparser: argparse.ArgumentParser):
     subparser.allow_abbrev = False
     subparser.set_defaults(func=handle_crypto_compare)
@@ -83,6 +88,13 @@ def config_kraken_socket_parser(subparser: argparse.ArgumentParser):
     subparser.set_defaults(func=handle_kraken_websocket)
     subparser.usage = 'pyton %(prog)s kraken'
     subparser.description = 'Subscribe to kraken websocket and launches the alert system'
+
+
+def config_create_tables_parser(subparser: argparse.ArgumentParser):
+    subparser.allow_abbrev = False
+    subparser.set_defaults(func=handle_create_tables)
+    subparser.usage = 'pyton %(prog)s create-table'
+    subparser.description = 'Create the database tables based on the vendor provider configured in config.py'
 
 
 parser = argparse.ArgumentParser()
@@ -107,6 +119,9 @@ config_buda_exchange_parser(buda_parser)
 
 kraken_parser = subparsers.add_parser('kraken', help='Subscribe to kraken websocket')
 config_kraken_socket_parser(kraken_parser)
+
+create_table_parser = subparsers.add_parser('create-tables', help='Create the database tables')
+config_create_tables_parser(create_table_parser)
 
 argc = len(sys.argv)
 if argc <= 1:
